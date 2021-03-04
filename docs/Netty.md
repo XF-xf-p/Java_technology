@@ -2,13 +2,51 @@
 
 Netty是一个高性能、异步事件驱动的NIO框架，它基于JavaNIO提供的API实现，提供了对TCP( Transmission Control Protocol，传输控制协议）、UDP(User Datagram Protocol，用户数据包协议）和文件传输的支持。作为一个异步NIO框架，Netty的所有I/O 操作都是异步非阻塞的，通过Future-Listener机制，用户可以方便地主动获取或者通过通知机制获取I/O操作结果。
 
-## 2.Reactor线程模型
+Netty是一个高性能的异步事件驱动的网络应用程序框架，主要用于客户端和服务端网络应用程序的快速搭建和开发。基于Netty API可以非常快速、方便地构建一个高性能的TCP或UDP的网络应用，不但极大地简化了网络编程的复杂度，还提高了网络应用程序的性能和稳定性。Netty支持多种网络通信协议，包括TCP、UDP、FTP、HTTP、SMTP等。
+
+## 2.Netty 高性能
+
+在IO编程过程中，当需要同时处理多个客户端接入请求时，可以利用多线程或者IO多路复用技术进行处理。IO多路复用技术通过把多个IO的阻塞复用到同一个select的阻塞上，从而使得系统在单线程的情况下可以同时处理多个客户端请求。与传统的多线程/多进程模型比，I/O多路复用的最大优势是系统开销小，系统不需要创建新的额外进程或者线程，也不需要维护这些进程和线程的运行，降低了系统的维护工作量，节省了系统资源。
+
+与Socket类和ServerSocket类相对应，NIO也提供了SocketChannel和ServerSocketChannel两种不同的套接字通道实现。
+
+### 多路复用通讯方式
+
+Netty架构按照Reactor模式设计和实现，它的服务端通信序列图如下：
+
+![](D:\workspace\Java-Interview-Offer\images\netty006.png)
+
+客户端通信序列图如下：
+
+![](D:\workspace\Java-Interview-Offer\images\netty007.png)
+
+
+
+Netty的IO线程NioEventLoop由于聚合了多路复用器Selector，可以同时并发处理成百上千个客户端Channel，由于读写操作都是非阻塞的，这就可以充分提升IO线程的运行效率，避免由于频繁IO阻塞导致的线程挂起。
+
+### 异步通讯NIO
+
+由于Netty采用了异步通信模式，一个IO线程可以并发处理N个客户端连接和读写操作，这从根本上解决了传统同步阻塞IO一连接一线程模型，架构的性能、弹性伸缩能力和可靠性都得到了极大的提升。
+
+### 零拷贝（DIRECT BUFFERS使用堆外直接内存）
+
+Netty的接收和发送ByteBuffer采用DIRECT BUFFERS，使用堆外直接内存进行Socket读写，不需要进行字节缓冲区的二次拷贝。如果使用传统的堆内存（HEAP BUFFERS）进行Socket读写，JVM会将堆内存Buffer拷贝一份到直接内存中，然后才写入Socket中。相比于堆外直接内存，消息在发送过程中多了一次缓冲区的内存拷贝。
+
+Netty提供了组合Buffer对象，可以聚合多个ByteBuffer对象，用户可以像操作一个Buffer那样方便的对组合Buffer进行操作，避免了传统通过内存拷贝的方式将几个小Buffer合并成一个大的Buffer。
+
+Netty的文件传输采用了transferTo方法，它可以直接将文件缓冲区的数据发送到目标Channel，避免了传统通过循环write方式导致的内存拷贝问题。
+
+### 内存池（基于内存池的缓冲区重用机制）
+
+随着JVM虚拟机和JIT即时编译技术的发展，对象的分配和回收是个非常轻量级的工作。但是对于缓冲区Buffer，情况却稍有不同，特别是对于堆外直接内存的分配和回收，是一件耗时的操作。为了尽量重用缓冲区，Netty提供了基于内存池的缓冲区重用机制。
+
+## 3.Reactor线程模型
 
 Reactor是一种并发处理客户端请求响应的事件驱动模型。服务端在接收到客户端请求后采用多路复用策略，通过一个非阻塞的线程来异步接收所有的客户端请求，并将这些请求转发到相关的工作线程组上进行处理。
 
 Reactor模型常常基于异步线程的方式实现，常用的Reactor线程模型有3种：Reactor单线程模型、Reactor多线程模型和Reactor主从多线程模型。
 
-## 3.JavaNIO 
+## 4.JavaNIO 
 
 Java NIO的实现主要涉及3个核心概念：Selector（选择器）、Channel（通道）和Buffer （缓冲区）。Selector用于监听多个Channel的事件，比如连接打开或数据到达，因此，一个线程可实现对多个Channel的管理。传统的I/O基于数据流进行I/O读写操作，而Java NIO基于Channel和Buffer进行I/O读写操作，并且数据总是从Channel读取到Buffer，或者从Buffer写入Channel。
 
@@ -30,7 +68,7 @@ Buffer实际上是一个容器，其内部通过一个连续的字节数组存�
 
 Selector用于检测在多个注册的Channel上是否有I/O事件发生，并对检查到的I/O事件进行相应的响应和处理。因此，通过一个Selector线程可以实现对多个Channel的管理，而不必为每个连接都创建一个线程，避免线程资源的浪费和多线程之间的上下文切换导致的开销。同时，Selector只在Channel上有读写事件发生时，才会调用I/O函数进行读写操作，可极大地减少系统开销，提高系统的并发量。
 
-## 4.Reactor单线程模型
+## 5.Reactor单线程模型
 
 Reactor单线程模型指所有的客户端I/O操作请求都在一个线程（Thread）上完成。
 
@@ -56,7 +94,7 @@ Reactor单线程模型的各模块组成及职责。
 
 ( 3 ）消息处理完成后调用对应的EncoderHandler将请求响应进行消息的编码和下发。
 
-## 5.Reactor多线程模型
+## 6.Reactor多线程模型
 
 ![](D:\workspace\Java-Interview-Offer\images\netty002.png)
 
@@ -64,17 +102,13 @@ Reactor多线程模型与单线程模型最大的区别就是由一组线程（T
 
 Reactor多线程模型与单线程模型的区别在于，Reactor多线程模型用于接收客户端请求的Acceptor由一个线程来负责，用于处理客户端消息的Dispatcher由一个线程池负责，这样，基于线程池的调度和线程异步执行的能力，能够在同一时间内接收和处理更多的客户端请求。
 
-## 6.Reactor主从多线程模型
+## 7.Reactor主从多线程模型
 
 ![](D:\workspace\Java-Interview-Offer\images\netty003.png)
 
 在Reactor主从多线程模型中，服务端用于接收客户端连接的不再是一个NIO线程，而是一个独立的NIO线程池。主线程Acceptor在接收到客户端的TCP连接请求并建立完成连接后（可能要经过鉴权、登录等过程），将新创建的SocketChannel注册到子I/O线程池（Sub Reactor Pool ）的某个I/O线程上，由它负责具体的SocketChannel的读写和编解码工作。
 
 Reactor主从多线程模型中的Acceptor线程池（Acceptor Thread Pool ）只用于客户端的鉴权、登录、握手和安全认证，一旦链路建立成功，就将链路注册到后端Sub Reactor 线程池的I/O线程上，由I/O线程负责后续的I/O操作。这样就将客户端连接的建立和消息的响应都以异步线程的方式来实现，大大提高了系统的吞吐量。
-
-## 7.Netty简介
-
-Netty是一个高性能的异步事件驱动的网络应用程序框架，主要用于客户端和服务端网络应用程序的快速搭建和开发。基于Netty API可以非常快速、方便地构建一个高性能的TCP或UDP的网络应用，不但极大地简化了网络编程的复杂度，还提高了网络应用程序的性能和稳定性。Netty支持多种网络通信协议，包括TCP、UDP、FTP、HTTP、SMTP等。
 
 ## 8.Netty的架构设计
 
@@ -212,7 +246,7 @@ Netty的NioEventLoop的设计思路是Channel读取消息后，直接调用Chann
 
 Netty默认基于Google ProtoBuf实现数据的序列化，通过扩展Netty的编解码接口，用户可以实现自定义的序列化框架，例如Thrift的压缩二进制编解码框架。在使用ProtoBuf序列化的时候需要注意以下几点。
 
-( 1 ) SO_RCVBUF和SO_SNDBUF的设置：SO_RCVBUF为接收数据的Buffer大小，SO_SNDBUF为发送数据的Buffer大小，通常建议值为128KB或者256KB
+( 1 ) SO_RCVBUF和SO_SNDBUF的设置：SO_RCVBUF为接收数据的Buffer大小，SO_SNDBUF为发送数据的Buffer大小，通常建议值为128KB或者256KB。
 
 ( 2) SO_TCPNODELAY的设置：将SO_TCPNODELAY 设置为true，表示开启自动粘包操作，该操作采用Nagle算法将缓冲区内字节较少的包前后相连组成一个大包一起发送，防止大量小包频繁发送造成网络的阻塞，从而提高网络的吞吐量。该算法对单条数据延迟的要求不高，但在传输数据量大的情况下能显著提高性能。
 
@@ -251,3 +285,97 @@ Netty的使用分为客户端和服务端两部分。客户端用于连接服务
 ( 7) Netty的使用
 
 分别执行main（）方法启动NettyServer和NettyClient,NettyClient在启动后会向服务端发送消息，服务端在收到消息后会做出消息回应。
+
+## 18.Netty RPC实现
+
+### 概念
+
+RPC，即Remote Procedure Call（远程过程调用），调用远程计算机上的服务，就像调用本地服务一样。RPC可以很好的解耦系统，如WebService就是一种基于Http协议的RPC。这个RPC整体框架如下：
+
+![](D:\workspace\Java-Interview-Offer\images\netty008.png)
+
+### 关键技术
+
+1.服务发布与订阅：服务端使用Zookeeper注册服务地址，客户端从Zookeeper获取可用的服务地址。
+
+2.通信：使用Netty作为通信框架。
+
+3.Spring：使用Spring配置服务，加载Bean，扫描注解。
+
+4.动态代理：客户端使用代理模式透明化服务调用。
+
+5.消息编解码：使用Protostuff序列化和反序列化消息。
+
+### 核心流程
+
+1.服务消费方（client）调用以本地调用方式调用服务；
+
+2.client stub接收到调用后负责将方法、参数等组装成能够进行网络传输的消息体；
+
+3.client stub找到服务地址，并将消息发送到服务端；
+
+4.server stub收到消息后进行解码；
+
+5.server stub根据解码结果调用本地的服务；
+
+6.本地服务执行并将结果返回给server stub；
+
+7.server stub将返回结果打包成消息并发送至消费方；
+
+8.client stub接收到消息，并进行解码；
+
+9.服务消费方得到最终结果。
+
+RPC的目标就是要2~8这些步骤都封装起来，让用户对这些细节透明。JAVA一般使用动态代理方式实现远程调用。
+
+![](D:\workspace\Java-Interview-Offer\images\netty009.png)
+
+### 消息编解码
+
+#### 消息数据结构（接口名称+方法名+参数类型和参数值+超时时间+ requestID）
+
+客户端的请求消息结构一般需要包括以下内容：
+
+1.接口名称：在我们的例子里接口名是“HelloWorldService”，如果不传，服务端就不知道调用哪个接口了；
+
+2.方法名：一个接口内可能有很多方法，如果不传方法名服务端也就不知道调用哪个方法；
+
+3.参数类型和参数值：参数类型有很多，比如有bool、int、long、double、string、map、list，甚至如struct（class）；以及相应的参数值；
+
+4.超时时间：
+
+5.requestID，标识唯一请求id，在下面一节会详细描述requestID的用处。
+
+6.服务端返回的消息：一般包括以下内容。返回值+状态code+requestID
+
+#### 序列化
+
+目前互联网公司广泛使用Protobuf、Thrift、Avro等成熟的序列化解决方案来搭建RPC框架，这些都是久经考验的解决方案。
+
+## 19.通讯过程
+
+### 核心问题(线程暂停、消息乱序)
+
+如果使用netty的话，一般会用channel.writeAndFlush()方法来发送消息二进制串，这个方法调用后对于整个远程调用(从发出请求到接收到结果)来说是一个异步的，即对于当前线程来说，将请求发送出来后，线程就可以往后执行了，至于服务端的结果，是服务端处理完成后，再以消息的形式发送给客户端的。于是这里出现以下两个问题：
+
+1.怎么让当前线程“暂停”，等结果回来后，再向后执行？
+
+2.如果有多个线程同时进行远程方法调用，这时建立在client server之间的socket连接上会有很多双方发送的消息传递，前后顺序也可能是随机的，server处理完结果后，将结果消息发送给client，client收到很多消息，怎么知道哪个消息结果是原先哪个线程调用的？如下图所示，线程A和线程B同时向client socket发送请求requestA和requestB，socket先后将requestB和requestA发送至server，而server可能将responseB先返回，尽管requestB请求到达时间更晚。我们需要一种机制保证responseA丢给ThreadA，responseB丢给ThreadB。
+
+### 通讯流程
+
+#### requestID生成-AtomicLong
+
+1.client线程每次通过socket调用一次远程接口前，生成一个唯一的ID，即requestID（requestID必需保证在一个Socket连接里面是唯一的），一般常常使用AtomicLong从0开始累计数字生成唯一ID；
+
+#### 存放回调对象callback到全局ConcurrentHashMap
+
+2.将处理结果的回调对象callback，存放到全局ConcurrentHashMap里面put(requestID, callback)；
+
+#### synchronized获取回调对象callback的锁并自旋wait
+
+3.当线程调用channel.writeAndFlush()发送消息后，紧接着执行callback的get()方法试图获取远程返回的结果。在get()内部，则使用synchronized获取回调对象callback的锁，再先检测是否已经获取到结果，如果没有，然后调用callback的wait()方法，释放callback上的锁，让当前线程处于等待状态。
+
+#### 监听消息的线程收到消息，找到callback上的锁并唤醒
+
+4.服务端接收到请求并处理后，将response结果（此结果中包含了前面的requestID）发送给客户端，客户端socket连接上专门监听消息的线程收到消息，分析结果，取到requestID，再从前面的ConcurrentHashMap里面get(requestID)，从而找到callback对象，再用synchronized获取callback上的锁，将方法调用结果设置到callback对象里，再调用callback.notifyAll()唤醒前面处于等待状态的线程。

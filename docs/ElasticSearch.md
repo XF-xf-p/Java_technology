@@ -40,9 +40,8 @@ Stored（是否存储）：是否将Field值存储在文档中，只有存储在
 
 ( 3 ）分析文档：分析文档的过程是将原始内容创建为包含Field的文档（Document）并对Field的内容进行分析的过程。分析文档的过程需要对原始文档执行提取单词、大小写转换、去除标点符号、去除停用词等操作，然后生成最终的语汇单元。如下为一个分析文档的过程。
 
-原文档内容：Lucene is a Java full-text search engine
-
-分析后得到的语汇单元：lucene、java、full、search、engine。
+- 原文档内容：Lucene is a Java full-text search engine
+- 分析后得到的语汇单元：lucene、java、full、search、engine。
 
 语汇单元中的每个单词都被叫作一个Term，不同的Field拆分出来的相同单词是不同的Term。Term中包含两部分：一部分是文档的Field名称，另一部分是单词的内容。
 
@@ -300,9 +299,9 @@ ElasticSearch在处理读取请求时，协调节点在每次收到客户端请�
 
 ( 2 ）协调节点Node-1根据文档的id来确定文档属于分片1。分片1的文档数据存在所有3个节点上。在这种情况下，它将请求转发到Node-2。
 
-( 3) Node-2在本地执行查询操作并将查询结果返回到Node-1。
+( 3 ) Node-2在本地执行查询操作并将查询结果返回到Node-1。
 
-(4) Node-1（此时Node-1为CoordinatingNode角色）接收Node-2的查询结果，如果查询到请求对应的文档，则将该文档返回客户端。如果在Node-2上未查询到对应的文档数据，则Node-1会继续向其他节点发送文档读取请求，直到查询到文档对应的数据后才返回。如果要读取的文档在所有节点上都不存在，则向客户端报告文档不存在。
+( 4 ) Node-1（此时Node-1为CoordinatingNode角色）接收Node-2的查询结果，如果查询到请求对应的文档，则将该文档返回客户端。如果在Node-2上未查询到对应的文档数据，则Node-1会继续向其他节点发送文档读取请求，直到查询到文档对应的数据后才返回。如果要读取的文档在所有节点上都不存在，则向客户端报告文档不存在。
 
 ## 13.ElasticSearch中的Translog 
 

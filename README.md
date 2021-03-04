@@ -1,60 +1,229 @@
-# Java-Interview-Dictionary
+# java工程师修炼之道
 
+## 阶段一：java基础
 
+- java基础语法
+- 面向对象
+- java数组
+- 高级类特性
+  - 接口与抽象类
+  - 内部类
+  - 枚举
+  - [注解](/docs/java基础/注解.md)
+- JavaAPI
+  - 包装类
+  - String
+- [异常](/docs/java基础/异常.md)
+- 集合
+  - [List](/docs/java基础/List.md)
+  - [Set](/docs/java基础/Set.md)
+  - [Map](/docs/java基础/Map.md)
+    - [HashMap](/docs/java基础/HashMap.md)
+    - [ConcurrentHashMap](/docs/java基础/ConcurrentHashMap.md)
+  - Iterator
+  - Collections
+  - [Queue](/docs/java基础/Queue.md)
+- [泛型](/docs/java基础/泛型.md)
+- IO流
+- 多线程
+  - 线程的创建
+  - 线程的生命周期
+  - 线程的同步
+  - 死锁
+- [反射](/docs/java基础/反射.md)
+- 新特性
+- [序列化](/docs/java基础/序列化.md)
+- 网络编程
+  - 网络通信协议
+  - TCP协议与UDP协议
+- 数据库
+  - 关系型数据库
+    - MySQL
+      - SQL语句
+      - DML、DCL、DDL
+      - 事物
+      - 索引
+  - 非关系型数据库
 
-# Java Offer 来了
+## 阶段二：JavaWEB
 
+- XML
+- WEB服务器Tomcat
+- Servlet
+- Cookie&Session
+- Filter&Listener
+- 国际化
+- 文件上传下载
 
+## 阶段三：JavaEE主流框架
 
+- Spring
+  - AOP
+  - IOC
+  - 事物
+- SpringMVC
+  - 运行原理
+  - 数据绑定
+- MyBatis
+  - 缓存机制
+  - 运行原理
+- JPA
+  - 注解
+  - 映射
+- SpringData
+- Maven
+  - 本地仓库&中央仓库
+  - 继承&聚合
+- Git
+  - 常用操作命令
+  - 工作流
+- Linux
+  - 常用命令
+- Shell编程
+  - Shell基础
+- 缓存
+  - Redis
+    - 数据类型
+    - 持久化
+    - 事物控制
+  - memcache
+- Shiro
+  - 工作流程
+  - 认证流程
+  - 缓存
+- Activiti5
+  - 工作流&工作流引擎
+  - 流程定义
+- WebService
+- JVM
+  - java内存模型
+  - GC原理
+- JUC线程高级
+  - volatile关键字
+  - ConcurrentHashMap
+  - CountDownLatch闭锁
+  - Lock同步锁
+  - 常用工具类
+  - ReadWriteLock读写锁
+  - 线程池
+  - 工作窃取模式
+- Quartz
+  - 作业调度
+- Nginx
+  - 反向代理
 
+## 阶段四：微服务
 
-# 目录
+- Dubbo
+- NIO
+  - 缓冲区与通道
+  - 阻塞与非阻塞
+- 分库分表
+  - MyCat
+    - 分片
+    - 读写分离
+  - Sharding-JDBC
+- FastDFS
+  - 文件上传
+- SpringBoot
+- SpringCloud
+  - Eureka
+  - Ribbon实现客户端负载均衡
+  - Feign实现声明式REST调用
+  - Hystrix实现容错处理
+  - Zuul构建网关
+  - Sleuth
+- Docker
+- 单点登录
+- 搜索引擎
+  - Elasticsearch
+- Zookeeper
+- 消息中间件
+  - ActiveMQ
+  - RabbitMQ
+  - RocketMQ
+  - kafka
+- 数据存储
+  - HBase
+- Netty
 
-- ## java基础
+## 阶段五：分布式
 
-  - ### [集合](/docs/集合.md)
+- 分布式架构
+- 分布式事务
+- 分布式session
+- 分布式缓存
+- 分布式全局id
+- 分布式锁
+- 分布式定时任务调度
+- 高可用
+- 高并发
+- 高流量
 
-  - ### [异常](/docs/异常.md)
+## 阶段六：微服务高级
 
-  - ### [反射](/docs/反射.md)
+- Consul
+- SpringCloudAlibaba
+  - Nacos：服务发现、配置和管理
+  - Seata：分布式事物中间件
+  - Sentinel：流量控制、熔断降级及系统负载保护
+- SpringCloud
+  - Sleuth+Zipkin：服务链路追踪及可视化
+  - Gateway：网关（限流+缓存+日志+监控+鉴权+路由）
+  - OpenFeign：服务间调用
+- Reddsion
+- OSS
+- JMeter
+- JVisualVm
+- Vagrant
+- kibana
 
-  - ### [注解](/docs/注解.md)
+## 阶段七：自动化部署
 
-  - ### [内部类](/docs/内部类.md)
+- kubernetes
+- Jenkins
+- SonarQube：项目工程代码质量检测
 
-  - ### [泛型](/docs/泛型.md)
+## 阶段八：大数据
 
-  - ### [网络编程](/docs/网络编程.md)
+- Hadoop
+- Hive
+- Impala
+- Spark
+- Flink
 
-- ## JVM
+## 阶段九：提升
 
-  - ### [JVM](/docs/JVM.md)
+- 算法
+- 设计模式
+  - 设计原则
+  - 设计模式
+- 数据结构
+- 性能调优
+  - 代码调优
+  - mysql调优
+    - 慢sql
+  - jvm调优
+    - 常见oom及原因
+    - co
+    - cpu占用过高
+  - tomcat调优
+- 安全技术
+  - 加密
+  - HTTPS
+  - 安全协议
+  - web安全
+- 计算机基础
+  - 计算机操作系统
+  - 计算机网络
+  - 计算机组成原理
+- UML建模
+- 中台架构
 
-  - ### [GC](/docs/GC.md)
+## 阶段十：源码分析
 
-- ## 并发编程
+## 阶段十一：手写框架
 
-  - ### [多线程](/docs/多线程.md)
+## 阶段十二：系统设计
 
-  - ### [锁](/docs/锁.md)
-
-  - ### [并发](/docs/并发.md)
-
-  - ### [阻塞队列](/docs/阻塞队列.md)
-
-- ## [数据结构](/docs/数据结构.md)
-
-- ## [网络](/docs/数据结构.md)
-
-- ## 数据库
-
-  - ### [MySQL](/docs/MySQL.md)
-
-- ## 缓存
-
-  - ### Redis
-
-  - ### [Ehcache](/docs/Ehcache.md)
-
-
-
+- 秒杀系统

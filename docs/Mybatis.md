@@ -9,9 +9,11 @@ MyBatis缓存分为一级缓存和二级缓存，在默认情况下，一级缓�
 - 一级缓存：SqlSession级别的缓存，当在同一个SqISession中执行相同的SQL语句查询时将查询结果集缓存，第二次以后的查询不会从数据库中查询，而是直接从缓存中获取，一级缓存最多能缓存1024条SQL语句。
 - 二级缓存：指跨SqlSession的缓存，即Mapper级别的缓存。在Mapper级别的缓存内，不同的SqlSession缓存可以共享。
 
+![](D:\workspace\Java-Interview-Offer\images\mybatis002.png)
+
 ## 2.MyBatis的一级缓存原理
 
-当客户端第一次发出一个SQL查询语句时，MyBatis执行SQL查询并将查询结果写入SqlSession的一级缓存，当第二次有相同的SQL查询语句时，则直接从缓存中获取数据。在缓存中使用的数据结构是Map，其中，Key为Mapperld—+Offset+Limit+SQL＋所有的入参。
+当客户端第一次发出一个SQL查询语句时，MyBatis执行SQL查询并将查询结果写入SqlSession的一级缓存，当第二次有相同的SQL查询语句时，则直接从缓存中获取数据。在缓存中使用的数据结构是Map，其中，Key为Mapperld+Offset+Limit+SQL＋所有的入参。value：用户信息。
 
 当同一个SqlSession多次发出相同的SQL查询语句时，MyBatis直接从缓存中获取数据。如果两次查询中间出现Commit操作（修改、添加、删除），则认为数据发生了变化，MyBatis会把该SqlSession中的一级缓存区域全部清空，当下次再到缓存中查询时将找不到对应的缓存数据，因此要再次从数据库中查询数据并将查询的结果写入缓存。
 

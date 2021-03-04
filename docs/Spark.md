@@ -34,6 +34,8 @@ Spark生态圈以Spark Core为核心，支持从HDFS、S3、HBase等多种持久
 
 Spark基于Spark Core建立了Spark SQL、Spark Streaming、MLlib、GraphX、SparkR核心组件，基于不同组件可以实现不同的计算任务，这些计算任务的运行模式有：本地模式、独立模式、Mesos模式、YARN模式。Spark任务的计算可以从HDFS、S3、Hypertable、HBase或Cassandra等多种数据源中存取数据。
 
+![](D:\workspace\Java-Interview-Offer\images\spark001.png)
+
 ### Spark Core
 
 Spark的核心功能实现包括基础设施、存储系统、调度系统和计算引擎。
@@ -92,6 +94,8 @@ Spark的运行模式主要包括Local模式、Standalone模式、On YARN、On Me
 
 ### 6.Spark的集群架构
 
+![](D:\workspace\Java-Interview-Offer\images\spark002.png)
+
 Spark的集群架构主要由Cluster Manager （管理器）、Worker（工作节点）、Executor（执行器）、Driver（驱动器）、Applicaton（应用程序）5部分组成。
 
 ( 1) Cluster Manager: Spark集群管理器，主要用于整个集群资源的管理和分配。跟据部署模式的不同，可以分为Local、Standalone、YARN、Mesos和AWS。
@@ -123,6 +127,20 @@ Spark的集群架构主要由Cluster Manager （管理器）、Worker（工作�
 6.生成并发送Task到Executor。
 
 ( 5 ) Application：基于Spark API编写的应用程序，其中包括实现Driver功能的代码和在集群中多个节点上运行的Executor代码。Application通过Spark API创建RDD、对RDD进行转换、创建DAG、通过Driver将Application注册到Cluster Manager。
+
+## 7.SPARK运行流程
+
+![](D:\workspace\Java-Interview-Offer\images\spark003.png)
+
+1.构建Spark Application的运行环境，启动SparkContext
+
+2.SparkContext向资源管理器（可以是Standalone，Mesos，Yarn）申请运行Executor资源，并启动StandaloneExecutorbackend，3.Executor向SparkContext申请Task
+
+4.SparkContext将应用程序分发给Executor
+
+5.SparkContext构建成DAG图，将DAG图分解成Stage、将Taskset发送给Task Scheduler，最后由Task Scheduler将Task发送给Executor运行
+
+6.Task在Executor上运行，运行完释放所有资源
 
 ### 7.Spark的运行流程
 

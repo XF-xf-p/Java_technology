@@ -6,6 +6,24 @@ Kafka是一种高吞吐、分布式、基于发布和订阅模型的消息系统
 
 Kafka依赖ZooKeeper进行集群的管理，kafka与Storm、Spark能够非常友好地集成，用于实时流式计算。
 
+1.broker：Kafka服务器，负责消息存储和转发。
+
+2.topic：消息类别，Kafka按照topic来分类消息。
+
+3.partition：topic的分区，一个topic可以包含多个partition，topic消息保存在各个partition上。
+
+4.offset：消息在日志中的位置，可以理解是消息在partition上的偏移量，也是代表该消息的唯一序号。
+
+5.Producer：消息生产者。
+
+6.Consumer：消息消费者。
+
+7.Consumer Group：消费者分组，每个Consumer必须属于一个group。
+
+8.Zookeeper：保存着集群broker、topic、partition等meta数据；另外，还负责broker故障发现，partition leader选举，负载均衡等功能。
+
+![](D:\workspace\Java-Interview-Offer\images\kafka003.png)
+
 ## 2.Kafka的组成
 
 Kafka的核心概念有Producer、Consumer、Broker和Topic。其中，Producer为消息生产者；Consumer为消息消费者；Broker为Kafka的消息服务端，负责消息的存储和转发；Topic为消息类别，Kafka按照Topic来对消息分类。
@@ -26,7 +44,7 @@ ZooKeeper为Kafka提供集群的管理。它保存着集群的Broker、Topic、P
 
 Partition中的每条Message都包含3个属性：Offset、MessageSize、Data。其中，Offset表示Message在这个Partition中的偏移量，它在逻辑上是一个值，唯一确定了Partition中的一条Message;MessageSize表示消息内容Data的大小；Data为Message的具体内容。
 
-### Segment数据文件
+### 数据文件分段segment（顺序读写、分段命令、二分查找）
 
 Partition在物理上由多个Segment数据文件组成，每个Segment数据文件都大小相等、按顺序读写。每个Segment数据文件都以该段中最小的Offset命名，文件扩展名为.log。这样在查找指定Offset的Message的时候，用二分查找就可以定位到该Message在哪个Segment数据文件中。
 
@@ -38,13 +56,15 @@ Kafka Segment的存储结构
 
 ![](D:\workspace\Java-Interview-Offer\images\kafka002.png)
 
-### 数据文件索引
+### 数据文件索引（分段索引、稀疏存储）
 
 Kafka为每个Segment数据文件都建立了索引文件以方便数据寻址，索引文件的文件名与数据文件的文件名一致，不同的是索引文件的扩展名为.index。Kafka的索引文件并不会为数据文件中的每条Message都建立索引，而是采用稀疏索引的方式，每隔一定字节建立一条索引。这样可以有效地降低索引文件的大小，方便将索引文件加载到内存中以提高集群的吞吐量。索引文件中的第一位表示索引对应的Message的编号，第二位表示索引对应的Message的数据位置。
 
+![](D:\workspace\Java-Interview-Offer\images\kafka004.png)
+
 ## 4.生产者并发设计
 
-### 多个Producer并发生产消息
+### 负载均衡（partition会均衡分布到不同broker上）
 
 Kafka将一个Topic分为多个Partition，每个Partition上的数据都均衡分布在不同的Broker上，这样一个Topic上的数据就可以被多个Broker并发地接收或发送。
 

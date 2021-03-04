@@ -30,6 +30,94 @@ Spring提供的常用模块有核心容器层（Core Container）、 数据访�
 
 
 
+## 4.Spring 主要包
+
+![](D:\workspace\Java-Interview-Offer\images\spring006.png)
+
+## 5.Spring 常用注解
+
+bean注入与装配的的方式有很多种，可以通过xml，getset方式，构造函数或者注解等。简单易用的方式就是使用Spring的注解了，Spring提供了大量的注解方式。
+
+![](D:\workspace\Java-Interview-Offer\images\spring007.png)
+
+## 6.Spring 第三方结合
+
+![](D:\workspace\Java-Interview-Offer\images\spring008.png)
+
+## 13.Spring loC简介
+
+Spring通过一个配置文件描述Bean和Bean之间的依赖关系，利用Java的反射功能实例化Bean并建立Bean之间的依赖关系。Spring的IoC容器在完成这些底层工作的基础上，还提供了Bean实例缓存管理、Bean生命周期管理、Bean实例代理、事件发布和资源装载等高级服务。
+
+## 14.Spring Bean的装配流程
+
+Spring在启动时会从XML配置文件或注解中读取应用程序提供的Bean配置信息，并在Spring容器中生成一份相应的Bean配置注册表；然后根据这张注册表实例化Bean，装配好Bean之间的依赖关系，为上层业务提供基础的运行环境。其中Bean缓存池为HashMap实现。
+
+![](D:\workspace\Java-Interview-Offer\images\spring004.png)
+
+## 15.IOC容器实现
+
+### BeanFactory-框架基础设施
+
+BeanFactory 是Spring 框架的基础设施，面向Spring 本身；ApplicationContext 面向使用Spring 框架的开发者，几乎所有的应用场合我们都直接使用ApplicationContext 而非底层的BeanFactory。
+
+![](D:\workspace\Java-Interview-Offer\images\spring009.png)
+
+#### BeanDefinitionRegistry注册表
+
+Spring 配置文件中每一个节点元素在Spring 容器里都通过一个BeanDefinition 对象表示，它描述了Bean 的配置信息。而BeanDefinitionRegistry 接口提供了向容器手工注册BeanDefinition 对象的方法。
+
+#### BeanFactory 顶层接口
+
+位于类结构树的顶端，它最主要的方法就是getBean(String beanName)，该方法从容器中返回特定名称的Bean，BeanFactory 的功能通过其他的接口得到不断扩展：
+
+#### ListableBeanFactory
+
+该接口定义了访问容器中Bean 基本信息的若干方法，如查看Bean 的个数、获取某一类型Bean 的配置名、查看容器中是否包括某一Bean 等方法；
+
+#### HierarchicalBeanFactory父子级联
+
+父子级联IoC 容器的接口，子容器可以通过接口方法访问父容器；通过HierarchicalBeanFactory 接口，Spring 的IoC 容器可以建立父子层级关联的容器体系，子容器可以访问父容器中的Bean，但父容器不能访问子容器的Bean。Spring 使用父子容器实现了很多功能，比如在Spring MVC 中，展现层Bean 位于一个子容器中，而业务层和持久层的Bean 位于父容器中。这样，展现层Bean 就可以引用业务层和持久层的Bean，而业务层和持久层的Bean 则看不到展现层的Bean。
+
+#### ConfigurableBeanFactory
+
+是一个重要的接口，增强了IoC 容器的可定制性，它定义了设置类装载器、属性编辑器、容器初始化后置处理器等方法；
+
+#### AutowireCapableBeanFactory自动装配
+
+定义了将容器中的Bean 按某种规则（如按名字匹配、按类型匹配等）进行自动装配的方法；
+
+#### SingletonBeanRegistry运行期间注册单例Bean
+
+定义了允许在运行期间向容器注册单实例Bean 的方法；对于单实例（singleton）的Bean 来说，BeanFactory会缓存Bean 实例，所以第二次使用getBean() 获取Bean 时将直接从IoC 容器的缓存中获取Bean 实例。Spring 在DefaultSingletonBeanRegistry 类中提供了一个用于缓存单实例Bean 的缓存器，它是一个用HashMap 实现的缓存器，单实例的Bean 以beanName 为键保存在这个HashMap 中。
+
+#### 依赖日志框框
+
+在初始化BeanFactory 时，必须为其提供一种日志框架，比如使用Log4J，即在类路径下提供Log4J 配置文件，这样启动Spring 容器才不会报错。
+
+### ApplicationContext面向开发应用
+
+ApplicationContext 由BeanFactory 派生而来，提供了更多面向实际应用的功能。ApplicationContext 继承了HierarchicalBeanFactory 和ListableBeanFactory 接口，在此基础上，还通过多个其他的接口扩展了BeanFactory 的功能：
+
+![](D:\workspace\Java-Interview-Offer\images\spring010.png)
+
+1.ClassPathXmlApplicationContext：默认从类路径加载配置文件。
+
+2.FileSystemXmlApplicationContext：默认从文件系统中装载配置文件。
+
+3.ApplicationEventPublisher：让容器拥有发布应用上下文事件的功能，包括容器启动事件、关闭事件等。
+
+4.MessageSource：为应用提供i18n 国际化消息访问的功能；
+
+5.ResourcePatternResolver ：所有ApplicationContext 实现类都实现了类似于PathMatchingResourcePatternResolver 的功能，可以通过带前缀的Ant 风格的资源文件路径装载Spring 的配置文件。
+
+6.LifeCycle：该接口是Spring 2.0 加入的，该接口提供了start()和stop()两个方法，主要用于控制异步处理过程。在具体使用时，该接口同时被ApplicationContext 实现及具体Bean 实现，ApplicationContext 会将start/stop 的信息传递给容器中所有实现了该接口的Bean，以达到管理和控制JMX、任务调度等目的。
+
+7.ConfigurableApplicationContext 扩展于ApplicationContext，它新增加了两个主要的方法：refresh()和close()，让ApplicationContext 具有启动、刷新和关闭应用上下文的能力。在应用上下文关闭的情况下调用refresh()即可启动应用上下文，在已经启动的状态下，调用refresh()则清除缓存并重新装载配置信息，而调用close()则可关闭应用上下文。
+
+### WebApplication体系架构
+
+WebApplicationContext 是专门为Web 应用准备的，它允许从相对于Web 根目录的路径中装载配置文件完成初始化工作。从WebApplicationContext 中可以获得ServletContext 的引用，整个Web 应用上下文对象将作为属性放置到ServletContext 中，以便Web 应用环境可以访问Spring 应用上下文。
+
 ## 3.核心容器层
 
 核心容器层由Spring-Beans、Spring-Core、Spring-Context和SpEL( Spring Expression Language, Spring表达式语言)等模块组成。
@@ -282,39 +370,21 @@ Spring的注解在开发中无处不在。
 
 @ContextConfiguration：用来加载配置ApplicationContext，其中classes属性用来加载配置类
 
-### Spring MVC注解
-
-@Controller：声明该类为SpringMVC中的控制器
-
-@RequestMapping：用于声明映射Web请求的地址和参数，包括访问路径和参数
-
-@ResponseBody：支持将返问值放在Response Body体中返问，通常用于返回JSON数据到前端
-
-@RequestBody ：允许Request的参数在Request Body体中
-
-@Path Variable ：用于接收基于路径的参数，通常作为RESTful接口的实现
-
-@RestController：组合注解，相当于＠Controller和@ResponseBody 的组合
-
-@ExceptionHandler：用于全局控制器的异常处理
-
-@InitBinder：WebDataBinder用来自动绑定前台请求的参数到模型（Model）中
-
-## 13.Spring loC简介
+## 13.Spring loC
 
 Spring通过一个配置文件描述Bean和Bean之间的依赖关系，利用Java的反射功能实例化Bean并建立Bean之间的依赖关系。Spring的IoC容器在完成这些底层工作的基础上，还提供了Bean实例缓存管理、Bean生命周期管理、Bean实例代理、事件发布和资源装载等高级服务。
 
 ## 14.Spring Bean的装配流程
 
-Spring在启动时会从XML配置文件或注解中读取应用程序提供的Bean配置信息，并在Spring容器中生成一份相应的Bean配置注册表；然后根据这张注册表实例化Bean，装配好Bean之间的依赖关系，为上层业务提供基础的运行环境。其中Bean缓存池为HashMap实现。
+Sprin在启动时会从XML配置文件或注解中读取应用程序提供的Bean配置信息，并在Spring容器中生成一份相应的Bean配置注册表；然后根据这张注册表实例化Bean，装配好Bean之间的依赖关系，为上层业务提供基础的运行环境，其中Bean缓存池为HashMap实现。
 
-![](D:\workspace\Java-Interview-Offer\images\spring004.png)
+![](D:\workspace\java\images\spring001.png)
 
 ## 15.Spring Bean的作用域
 
 Spring为Bean定义了5种作用域，分别为Singleton（单例）、Prototype（原型）、Request （请求级别）、Session（会话级别）和Global Session （全局会话）。
 
-### Singleton 
+### Singleton ：单例模式（多线程下不安全）
 
 Singleton是单例模式，当实例类型为单例模式时，Spring IoC容器中只会存在一个共享的Bean实例，无论有多少个Bean引用它，都始终指向同一个Bean对象。该模式在多线程下是不安全的。Singleton作用域是Spring中的默认作用域，也可以通过配置将Bean定义为Singleton模式，具体配置如下
 
@@ -322,7 +392,7 @@ Singleton是单例模式，当实例类型为单例模式时，Spring IoC容器�
 <bean id="userDao" class="com.alex.UserDaoImpl" scope="singleton">
 ```
 
-### Prototype
+### Prototype：原型模式每次使用时创建
 
 Prototype是原型模式，每次通过Spring容器获取Prototype定义的Bean时，容器都将创建一个新的Bean实例，每个Bean实例都有自己的属性和状态，而Singleton全局只有一个对象。因此，对有状态的Bean经常使用Prototype作用域，而对无状态的Bean则使用Singleton作用域。具体配置如下
 
@@ -330,7 +400,7 @@ Prototype是原型模式，每次通过Spring容器获取Prototype定义的Bean�
 <bean id="userSerice" class="com.alex.UserSerice" scope="prototype">
 ```
 
-### Request
+### Request：一次request一个实例
 
 Request指在一次HTTP请求中容器会返回该Bean的同一个实例，而对不同的HTTP请求则会创建新的Bean实例，并且该Bean实例仅在当前HTTP请求内有效，当前HTTP请求结束后，该Bean实例也将会随之被销毁。具体配置如下
 
@@ -354,25 +424,51 @@ Global Session指在一个全局的HTTP Session中容器会返回该Bean的同�
 
 ![](D:\workspace\Java-Interview-Offer\images\spring005.png)
 
-( I ）实例化一个Bean。
+#### 实例化
 
-(2 ）按照Spring上下文对实例化的Bean进行配置。
+1.实例化一个Bean，也就是我们常说的new。
 
-( 3 ）如果这个Bean实现了BeanNameAware接口，则会调用它实现的setBeanName(String）方法，该方法传递的参数是Spring配置文件中Bean的id值。
+#### IOC依赖注入
 
-( 4）如果这个Bean实现了BeanFactoryAware接口，则会调用它实现的setBeanFactory(BeanFactory）方法，该方法传递的参数是Spring工厂自身。
+2.按照Spring上下文对实例化的Bean进行配置，也就是IOC注入。
 
-( 5 ）如果这个Bean实现了ApplicationContextAware接口，则会调用setApplicationContext(ApplicationContext）方法，该方法传入的参数是Spring上下文
+#### setBeanName实现
 
-( 6） 如果该Bean关联了BeanPostProcessor接口，则会调用postProcessBeforeInitialization(Object obj, String s）方法，该方法在Bean初始化前调用，常用于定义初始化Bean的前置工作，比如系统缓存的初始化
+3.如果这个Bean已经实现了BeanNameAware接口，会调用它实现的setBeanName(String)方法，此处传递的就是Spring配置文件中Bean的id值
 
-( 7）如果Bean在Spring配置文件中配置了init-method属性，则会自动调用其配置的初始化方法。
+#### BeanFactoryAware实现
 
-( 8 ）如果某个Bean关联了BeanPostProcessor接口，将会调用postProcssAfterInitialization(Object obj, String s）方法。至此，Bean的初始化工作就完成了，应用程序就可以开始使用Bean实例了。
+4.如果这个Bean已经实现了BeanFactoryAware接口，会调用它实现的setBeanFactory，setBeanFactory(BeanFactory)传递的是Spring工厂自身（可以用这个方式来获取其它Bean，只需在Spring配置文件中配置一个普通的Bean就可以）。
 
-( 9 ）当Bean不再被需要时，会在清理阶段被清理掉。如果Bean实现了DisposableBean接口，则Spring会在退出前调用实现类的destroy（）方法
+#### ApplicationContextAware实现
 
-( 10 ）如果某个Bean的Spring配置文件中配置了destroy-method属性，在Bean被销毁前会自动调用其配置的销毁方法。
+5.如果这个Bean已经实现了ApplicationContextAware接口，会调用setApplicationContext(ApplicationContext)方法，传入Spring上下文（同样这个方式也可以实现步骤4的内容，但比4更好，因为ApplicationContext是BeanFactory的子接口，有更多的实现方法）
+
+#### postProcessBeforeInitialization接口实现-初始化预处理
+
+6.如果这个Bean关联了BeanPostProcessor接口，将会调用postProcessBeforeInitialization(Object obj, String s)方法，该方法在Bean初始化前调用，常用于定义初始化Bean的前置工作，BeanPostProcessor经常被用作是Bean内容的更改，并且由于这个是在Bean初始化结束时调用那个的方法，也可以被应用于内存或缓存技术。
+
+#### init-method
+
+7.如果Bean在Spring配置文件中配置了init-method属性会自动调用其配置的初始化方法。
+
+#### postProcessAfterInitialization
+
+8.如果这个Bean关联了BeanPostProcessor接口，将会调用postProcessAfterInitialization(Object obj, String s)方法。注：以上工作完成以后就可以应用这个Bean了，那这个Bean是一个Singleton的，所以一般情况下我们调用同一个id的Bean会是在内容地址相同的实例，当然在Spring配置文件中也可以配置非Singleton。
+
+#### Destroy过期自动清理阶段
+
+9.当Bean不再被需要时，会在清理阶段被清理掉。如果Bean实现了DisposableBean接口，则Spring会在退出前调用实现类的destroy（）方法
+
+#### destroy-method自配置清理
+
+10.如果某个Bean的Spring配置文件中配置了destroy-method属性，在Bean被销毁前会自动调用其配置的销毁方法。
+
+![](D:\workspace\Java-Interview-Offer\images\spring011.png)
+
+11.bean 标签有两个重要的属性（init-method和destroy-method）。用它们你可以自己定制初始化和注销方法。它们也有相应的注解（@PostConstruct和@PreDestroy）。
+
+<bean id="" class="" init-method="初始化方法" destroy-method="销毁方法">。
 
 ## 17.Spring的4种依赖注入
 
@@ -464,23 +560,27 @@ public class SpringAction {
 
 上述代码定义了一个name为factoryDao的工厂类，并通过factory-method定义了实例化对象的方法，这里实例化对象的方法是一个名为getFactoyDaolmpl的方法。该方法返回一个工厂类，在springAction中通过<property></property＞标签注入工厂实例。
 
-## 18.自动装配的种方式
+## 18.自动装配的5种方式
 
-Spring的装配方式包括手动装配和自动装配。手动装配包括基于XML装配（构造方法、set方法等）和基于注解装配2种方式。自动装配包括5种装配方式，这5种方式均可以用来引导Spring容器自动完成依赖注入，具体如下
+Spring的装配方式包括手动装配和自动装配。手动装配包括基于XML装配（构造方法、set方法等）和基于注解装配2种方式。自动装配包括5种装配方式，这5种方式均可以用来引导Spring容器自动完成依赖注入，具体如下。
 
 ( I ) no：关闭自动装配，通过显式设置ref属性来进行对象装配。
 
 ( 2) byName：通过参数名自动装配，Bean的autowire被设置为byName后，Spring容器试图匹配并装配与该属性具有相同名字的Bean。
 
-( 3) byType：通过参数类型自动装配，Bean的autowire被设置为byTyp后，Spring容器试图匹配并装配与该Bean的属性具有相同类型的Bean。( 4 ) constructor：通过设置构造器参数的方式来装配对象，如果没有匹配到带参数的构造器参数类型，则Spring会抛出异常。
+( 3) byType：通过参数类型自动装配，Bean的autowire被设置为byTyp后，Spring容器试图匹配并装配与该Bean的属性具有相同类型的Bean。
+
+( 4 ) constructor：通过设置构造器参数的方式来装配对象，如果没有匹配到带参数的构造器参数类型，则Spring会抛出异常。
 
 ( 5 ) autodetect：首先尝试使用constructor来自动装配，如果无法完成自动装配，则使用byType方式进行装配。
 
 ## 19.Spring AOP简介
 
-Spring AOP通过面向切面技术将与业务无关却为业务模块所共用的逻辑代码封装起来，以提高代码的复用率，降低模块之间的耦合度。
+"横切"的技术，剖解开封装的对象内部，并将那些影响了多个类的公共行为封装到一个可重用模块，并将其命名为"Aspect"，即切面。所谓"切面"，简单说就是那些与业务无关，却为业务模块所共同调用的逻辑或责任封装起来，便于减少系统的重复代码，降低模块之间的耦合度，并有利于未来的可操作性和可维护性。
 
-Spring AOP将应用分为核心关注点和横切关注点两个部分。业务处理流程为核心关注点，被业务所依赖的公共部分为横切关注点。横切关注点的特点是其行为经常发生在核心关注点的多处，而多处操作基本相似，比如权限认证、日志、事务。AOP的核心思想是将核心关注点和横切关注点分离开来，以降低模块耦合度。SpringAOP的主要应用场景如下：
+使用"横切"技术，AOP把软件系统分为两个部分：核心关注点和横切关注点。业务处理的主要流程是核心关注点，与之关系不大的部分是横切关注点。横切关注点的一个特点是，他们经常发生在核心关注点的多处，而各处基本相似，比如权限认证、日志、事物。AOP的作用在于分离系统中的各种关注点，将核心关注点和横切关注点分离开来。
+
+AOP主要应用场景有：
 
 - Authentication ：权限统一管理和授权
 - Caching ：缓存统一维护
@@ -488,15 +588,16 @@ Spring AOP将应用分为核心关注点和横切关注点两个部分。业务�
 - Error Handling ：系统统一错误处理
 - Lazy Loading ：数据懒加载
 - Debugging ：系统调试
-- Logging ：系统日志记录与存储
+- logging, tracing, profiling and monitoring：记录跟踪优化校准
 - Performance Optimization ：性能优化
+- Persistence：持久化
 - Resource Pooling：资源池统一管理和申请
 - Synchronization ：操作同步
 - Transactions：统一事务管理
 
 ## 20.AOP的核心概念
 
-- 横切关注点：定义对哪些方法进行拦截，拦截后执行哪些操作。
+- 横切关注点：定义对哪些方法进行拦截，拦截后执行哪些操作，这些关注点称之为横切关注点。
 - 切面（Aspect）：横切关注点的抽象。
 - 连接点（Joinpoint）：在Spring中，连接点指被拦截到的方法，但是从广义上来说，连接点还可以是字段或者构造器。
 - 切入点（Pointcut）：对连接点进行拦截的定义。
@@ -505,6 +606,8 @@ Spring AOP将应用分为核心关注点和横切关注点两个部分。业务�
 - 织入（Weave）：将切面应用到目标对象并执行代理对象创建的过程。
 - 引入（Introduction）： 在运行期为类动态地添加一些方法或字段而不用修改类的代码。
 
+![](D:\workspace\Java-Interview-Offer\images\spring012.png)
+
 ## 21.AOP的2种代理方式
 
 Spring提供了JDK和CGLib2种方式来生成代理对象，具体生成代理对象的方式由AopProxyFactory根据AdvisedSupport对象的配置来决定。Spring默认的代理对象生成策略为：如果是目标类接口，则使用JDK动态代理技术，否则使用CGLib动态代理技术。
@@ -512,7 +615,8 @@ Spring提供了JDK和CGLib2种方式来生成代理对象，具体生成代理�
 - JDK动态代理：JDK动态代理主要通过java.lang.reflect包中Proxy类和InvocationHandler接口来实现。InvocationHandler是一个接口，不同的实现定义不同的横切逻辑，并通过反射机制调用目标类的代码，动态地将横切逻辑和业务逻辑编制在一起。Proxy类利用InvocationHandler动态创建一个符合某一接口的实例，生成目标类的代理对象。JDK1.8中Proxy类的定义如下。
 
 ```
-public class Proxy implement java.io.Serializable{ 			private static final long serialVersionUID= -2222568056686623797L; 
+public class Proxy implement java.io.Serializable{ 			
+	private static final long serialVersionUID= -2222568056686623797L; 
 	//1 ：在构造方法参数中定义不同的InvocationHandler实现类
 	private static final Class<?>[] constructorParams = { InvocationHandler.class }; 
 	//2: Proxy类缓存列表
@@ -530,7 +634,7 @@ public class Proxy implement java.io.Serializable{ 			private static final long 
 ```
 
 - CGLib动态代理：CGLib即 Code Generation Library ，它是一个高性能的代码生成类库，可以在运行期间扩展Java类和实现Java接口。CGLib包的底层通过字节码处理框架ASM来实现，通过转换字节码生成新的类。
-- CGLib动态代理和JDK动态代理的别：JDK只能为接口创建代理实例，而对于没有通过接口定义业务方法的类，则只能通过CGLib创建动态代理来实现。
+- CGLib动态代理和JDK动态代理的区别：JDK只能为接口创建代理实例，而对于没有通过接口定义业务方法的类，则只能通过CGLib创建动态代理来实现。
 
 ## 22.AOP的5种通知类型
 
@@ -567,94 +671,3 @@ public class TransactionDemo {
 }
 ```
 
-## 24.Spring的生态
-
-Spring是一个开放的平台，在其上可以集成其他组件的功能。
-
-### Spring Data
-
-Spring Data为数据访问提供一个统一、一致的、基于Spring的编程模型，同时保留底层数据存储的特妹性。
-
-Spring Data提供了对关系型数据库、非关系型数据库、MapReduce框架和云数据服务的支持，使数据访问变得更简单高效。Spring Data为综合项目，其下包含多个针对特定数据库的子项目。
-
-#### Spring Data的特性
-
-Spring 为操作各种数据库提供了支持，以下为其主要特性。
-
-( 1 ）良好的数据库存储资源和对象映射封装。
-
-( 2 ）针对不同的存储资源提供灵活的查询。
-
-( 3 ）提供数据库字段和实体类的映射。
-
-( 4 ）支持透明数据审查（新增数据、最后一次修改数据）。
-
-( 5 ）可集成自定义数据库存储.
-
-( 6 ）通过JavaConfig和自定义XML名称空间轻松集成Spring
-
-( 7 ）与SpringMVC控制器的高级集成。
-
-( 8 ）支持跨库存储。
-
-#### Spring Data的主顶目
-
-Spring Data有多个子项目，根据项目的维护组织不同，可分成Spring官方维护的主项目和各个社区维护的社区项目。
-
-SpingData的主项目。
-
-- Spring Data Commons：Spring Data公共模块，为其他模块提供基础的操作规范和依赖。
-- Spring Data JDBC：Spring Data对JDBC的支持
-- Spring Data JDBC Ext：对标准JDBC的扩展，包括对Oracle RAC快速连接故障切换的支持、对AQ JMS的支持及对使用高级数据类型的支持。
-- Spring Data JPA ：Spring Data对JPA分布式事务的支持
-- Spring Data KeyValue ：Map结构的存储，方便为键值存储提供支持
-- Spring Data LDAP：Spring Data对LDAP的支持
-- Spring Data MongoDB：基于Spring的MongoDB文档数据库支持
-- Spring Data Redis ：基于配置支持快速的Redis访问
-- Spring Data REST ：支持将数据导出为基于RESTful的资源模型
-- Spring Data for Apache Cassandra：基于配置快速访问Apache Cassandra数据库
-- Spring Data for Apace Geode ：基于配置快速访问Apache Geode数据库
-- Spring Data for Apache Solr：基于配置快速访问Apache Solr数据库
-- Spring Data for Pivotal GemFire ：基于配置快速访问Pivotal GemFire数据库
-
-#### Spring Data的社区顶目
-
-Spring Data的社区项目指各个数据库社区为推广数据库而自行提供的Spring Data支持，由各个社区自己维护。
-
-- Spring Data Aerospike：Spring Data对Aerospike的支持
-- Spring Data ArangoDB ：Spring Data对ArangoDB的支持
-- Spring Data Couchbase：Spring Data对Couchbase的支持
-- Spring Data Azure Cosmos DB ：Spring Data对Microsoft Azure Cosmos DB的支持
-- Spring Data Cloud Datastore：Spring Data对Google Datastore的支持
-- Spring Data Cloud Spanner：Spring Data对Google Spanner的支持
-- Spring Data DynamoDB ：Spring Data对DynamoDB的支持
-- Spring Data ElasticSearch：Spring Data对ElasticSearch的支持
-- Spring Data Hazelcast ：Spring Data对Hazelcast的支持
-- Spring Data Jest ：Spring Data对ElasticSearch基于Jest REST的Client支持
-- Spring Data Neo4j ：Spring Data对Neo4j图数据库的支持
-- Spring Data Vault：Spring Data对Vault的支持
-
-### Spring的其他服务
-
-- Spring Cloud Data Flow：Spring对流数据实时分析的支持，包含Spring Cloud Data Flow for HashiCorp Nomad、Spring Cloud Data Flow for Red Hat OpnShift、Spring Cloud Data Flow for Apache Mesos 
-- Spring Security：Spring对安全统一访问的支持，包含Spring Security Kerberos、Spring Security OAuth、Spring Security SAML 
-- Spring Session：Spring Session提供了一套企业级的Session管理方案，方便构建水平化的应用
-- Spring Integration：是一个功能强大的EIP( Enterprise Integration Patterns)企业集成模式
-- Spring HATEOAS：是一个用于支持实现超文本驱动的REST Web服务的开发库，是HATEOAS的实现
-- Spring REST Docs：是一个测试驱动的Spring组件，能根据接口进行文档生成，支持MarkDown的转换和HTML的转化等
-- Spring Batch ：执行批量数据操作的框架，并将执行结果按照特定形式输出
-- Spring IO Platform：将Spring的核心API集成到一个适用于现代应用程序的平台中，提供了Spring项目组合中的版本依赖，主要解决依赖版本的冲突问题
-- Spring AMQP ：用于开发AMQP的解决方案，提供一个“模板”作为发送和接收消息的抽象；还为普通POJO提供消息处理支持；这些库促进AMQP资源的管理，同时支持依赖注入和声明式配置
-- Spring for Android：支持在Android环境下使用Spring框架，意在简化Android本地开发
-- Spring CredHub ：提供客户端支持，用于存储、检索和删除在Cloud Foundry平台中运行的CredHub服务器的凭据
-- Spring Flo：是一个JavaScript库，基于Spring Cloud Data Flow中的流构建器
-- Spring for Apache Kafka：Spring集成Kafka使用
-- Spring LDAP：主要用于更方便地对LDAP执行数据的CURD操作
-- Spring Mobile：用于识别用户端的访问是来自PC、手机，还是平板
-- Spring Roo：是SpringSource新的开放源码技术，创建Spring工程的小工具，通过一些命令可以快捷建立Spring的项目，可以选择性地增加Spring的大部分特性
-- Spring Shell：提供了一套交互式设计的Shell
-- Spring StateMachine：在Spring应用程序中使用状态机概念的框架
-- Spring Test HtmlUnit：提供了HTML的测试框架
-- Spring Vault ：提供了基于密钥的安全的数据访问方式
-- Spring Web Flow ：是一个MVC的扩展，其目标是实现对Web应用工作流的支持
-- Spring Web Services：是一个平台独立的、低耦合的、自包含的、可编程的Web应用程。可使用开放的XML标准来描述、发布、发现、协调和配置应用程序，用于开发分布式的、互操作的应用程序

@@ -72,9 +72,9 @@ HMaster是HBase集群的主节点，负责整个集群的管理工作，主要�
 
 ( 3 ）维护数据：维护集群的元数据信息，发现失效的Region，并将失效的Region分配到正常的Region Server上。在Region Server失效的时候，协调对应的HLog进行任务的拆分。
 
-### Region Server
+### HregionServer
 
-Region Server是数据具体的存储和请求节点，它直接对接用户的读写请求，主要职责如下。
+HregionServer是数据具体的存储和请求节点，它直接对接用户的读写请求，主要职责如下。
 
 ( 1 ）管理HMaster为其分配的Region。
 
@@ -90,29 +90,47 @@ Region Server是数据具体的存储和请求节点，它直接对接用户的�
 
 一个Region Server包含多个Region，每个Region又都有多个Store，每个Store都对应一个Column Family, Store又包含MemStore和StoreFile，这便组成了Region Server 数据存储的基本结构，它们的主要职责如下。
 
-Region：每个Region都保存表中某段连续的数据。一开始每个表都只有一个Region，随着数据量不断增加，当Region大小达到一个阈值时，Region就会被Region Server水平切分成两个新的Region。当Region很多时，HMaster会将Region保存到其他Region Server上。
+1.Region：每个Region都保存表中某段连续的数据。一开始每个表都只有一个Region，随着数据量不断增加，当Region大小达到一个阈值时，Region就会被Region Server水平切分成两个新的Region。当Region很多时，HMaster会将Region保存到其他Region Server上。
 
-Store：一个Region由多个Store组成，每个Store都对应一个Column Family, Store包含MemStore和StoreFile。
+2.Store：一个Region由多个Store组成，每个Store都对应一个Column Family, Store包含MemStore和StoreFile。
 
-MemStore：MemStore是HBase的内存数据存储，数据的写操作会先写到MemStore中，当MemStore中的数据增长到一个阈值后，Region Server会启动flashcatch 进程将MemStore中的数据写入StoreFile持久化存储，每次写入后都形成一个单独的StoreFile。当客户端检索数据时，先在MemStore中查找，如果MemStore中不存在，则会在StoreFile中继续查找。
+3.MemStore：MemStore是HBase的内存数据存储，数据的写操作会先写到MemStore中，当MemStore中的数据增长到一个阈值后，Region Server会启动flashcatch 进程将MemStore中的数据写入StoreFile持久化存储，每次写入后都形成一个单独的StoreFile。当客户端检索数据时，先在MemStore中查找，如果MemStore中不存在，则会在StoreFile中继续查找。
 
-StoreFile：StoreFile存储着具体的HBase数据，当StoreFile数量增长到一个阈值时，系统会自动进行合并（Minor Compaction和Major Compaction）。 在合并过程中会进行版本的合并和删除工作，形成更大的StoreFile。当一个Region中所有StoreFile的大小和数量都增长到超过一个阈值时，HMaster会把当前Region分割为两个，并分配到其他Region Server上，实现负载均衡。
+4.StoreFile：StoreFile存储着具体的HBase数据，当StoreFile数量增长到一个阈值时，系统会自动进行合并（Minor Compaction和Major Compaction）。 在合并过程中会进行版本的合并和删除工作，形成更大的StoreFile。当一个Region中所有StoreFile的大小和数量都增长到超过一个阈值时，HMaster会把当前Region分割为两个，并分配到其他Region Server上，实现负载均衡。
 
-HFile：HFile和StoreFile是同一个文件，只不过站在HDFS的角度称这个文件为HFile，站在HBase的角度就称这个文件为StoreFile。
+5.HFile：HFile和StoreFile是同一个文件，只不过站在HDFS的角度称这个文件为HFile，站在HBase的角度就称这个文件为StoreFile。
 
-HLog：HLog是一个普通的Hadoop SequenceFile ，记录着数据的操作日志，主要用来在HBase出现故障时进行日志重放、故障恢复。例如，磁盘掉电导致MemStore中的数据没有持久化存储到StoreFile，这时就可以通过HLog日志重放来恢复数据。
+6.HLog：HLog是一个普通的Hadoop SequenceFile ，记录着数据的操作日志，主要用来在HBase出现故障时进行日志重放、故障恢复。例如，磁盘掉电导致MemStore中的数据没有持久化存储到StoreFile，这时就可以通过HLog日志重放来恢复数据。
 
-HDFS：HDFS为HBase提供底层数据存储服务，同时为HBase提供高可用的支持，HBase将HLog存储在HDFS上，当服务器发生异常宕机时，可以重放HLog来恢复数据。
+7.HDFS：HDFS为HBase提供底层数据存储服务，同时为HBase提供高可用的支持，HBase将HLog存储在HDFS上，当服务器发生异常宕机时，可以重放HLog来恢复数据。
+
+### Region寻址方式（通过zookeeper .META）
+
+第1步：Client请求ZK获取.META.所在的RegionServer的地址。
+
+第2步：Client请求.META.所在的RegionServer获取访问数据所在的RegionServer地址，client会将.META.的相关信息cache下来，以便下一次快速访问。
+
+第3步：Client请求数据所在的RegionServer，获取所需要的数据。
 
 ## 6.HBase的数据读写流程
 
 ### HBase的数据写入流程
 
+![](D:\workspace\Java-Interview-Offer\images\hbase002.png)
+
+#### 获取RegionServe
+
 ( 1 ) Region Server寻址：HBase Client从ZooKeeper上获取数据并写入Region所在的Region Server。
+
+#### 请求写Hlog
 
 ( 2 ）写HLog：HBase Client将向Region Server发送写HLog请求，Region Server将HLog存储在HDFS上，并通过按顺序写磁盘提高效率。当Region Server出现异常时，需要使用HLog来恢复数据。
 
+#### 请求写MemStore
+
 ( 3 ）写MemStore并返回结果：HBase Client向Region Server发送写MemStore请求。只有当写HLog和写MemStore请求都成功后才算写入请求完成，并将写请求的结果反馈给HBase Client，这时对于客户端来说，整个写流程已经完成。
+
+#### MemStore刷盘
 
 ( 4 ) MemStore刷盘：HBase根据MemStore配置的刷盘策略定时将数据刷新到StoreFile中，完成数据持久化存储。
 
@@ -120,11 +138,7 @@ HDFS：HDFS为HBase提供底层数据存储服务，同时为HBase提供高可�
 
 为了提高HBase的写入性能，在写请求进入MemStore后，HBase不会立即刷盘，而是要等到MemStore满足一定条件后才进行刷盘操作。触发刷盘操作的场景有如下几个。
 
-( 1 ）全局内存限制：当所有MemStore占用的内存超过内存使用配置的最大比例时，HBase会触发刷盘操作。该配置参数为hbase.regionserver.global.memstore.
-
-upperLimit，默认为整个JVM堆内存的40%。当全局内存超限触发刷盘操作时，HBase并不会将所有MemStore都进行刷盘操作，而是通过另外一个参数hbase.regionserver.
-
-global.memstore. lowerLimit 来控制，默认是整个JVM堆内存的35%。当刷盘操作执行到所有的MemStore占整个JVM 堆内存的比率小于35%的时候将停止刷盘。由于刷盘是一个耗费资源的过程，该策略主要是为了减少大量刷盘对HBase性能带来的影响，实现在时间维度上均衡系统负载的目的。
+( 1 ）全局内存限制：当所有MemStore占用的内存超过内存使用配置的最大比例时，HBase会触发刷盘操作。该配置参数为hbase.regionserver.global.memstore.upperLimit，默认为整个JVM堆内存的40%。当全局内存超限触发刷盘操作时，HBase并不会将所有MemStore都进行刷盘操作，而是通过另外一个参数hbase.regionserver.global.memstore. lowerLimit 来控制，默认是整个JVM堆内存的35%。当刷盘操作执行到所有的MemStore占整个JVM 堆内存的比率小于35%的时候将停止刷盘。由于刷盘是一个耗费资源的过程，该策略主要是为了减少大量刷盘对HBase性能带来的影响，实现在时间维度上均衡系统负载的目的。
 
 ( 2 ) MemStore达到上限：当MemStore的大小达到hbase.hregion. memstore. flush.size 的时候会触发刷盘，默认为128MB。
 
@@ -221,3 +235,15 @@ HBase.maxsize=5000
 ( 7 ) 定义根据主键查询数据方法get：在HBaseService类中加入get(String tableName, String cf, String rowKey）方法，实现根据主键唯一查询一条HBase数据。其中，tableName为HBase表的名称，cf为列族名称，rowKey为该数据的主键。应用程序通过调用table.get(get）方法从HBase中查询数据，并取出其中每个单元格的数据。
 
 ( 8 ）定义根据主键范围查询方法getResultScanner：在HBaseService类中加入getResultScanner(String tableName,String startRowKey,String stopRowKey)方法，实现跟据主键范围查询。其中，tableName为表名，startRowKey为主键的开始位置，stopRowKey为主键的结束位置，HBase范围的查询通过在Scan中设置withStartRow和withStopRow来实现。HBase中的数据默认根据主键进行排序。
+
+## 9.概念
+
+base是分布式、面向列的开源数据库（其实准确的说是面向列族）。HDFS为Hbase提供可靠的底层数据存储服务，MapReduce为Hbase提供高性能的计算能力，Zookeeper为Hbase提供稳定服务和Failover机制，因此我们说Hbase是一个通过大量廉价的机器解决海量数据的高速存储和读取的分布式数据库解决方案。
+
+## 10.列式存储
+
+列方式所带来的重要好处之一就是，由于查询中的选择规则是通过列来定义的，因此整个数据库是自动索引化的。
+
+这里的列式存储其实说的是列族存储，Hbase是根据列族来存储数据的。列族下面可以有非常多的列，列族在创建表的时候就必须指定。为了加深对Hbase列族的理解，下面是一个简单的关系型数据库的表和Hbase数据库的表：
+
+![](D:\workspace\Java-Interview-Offer\images\hbase001.png)

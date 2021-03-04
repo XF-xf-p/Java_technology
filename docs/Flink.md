@@ -146,7 +146,7 @@ SavePoint和CheckPoint的不同在于，CheckPoint是程序按照配置定期自
 
 ( 2 ) Task Manager在收到保存CheckPoint任务后进行快照备份（Save CheckPoint）。
 
- ( 3 ) Task Manager在执行完快照备份后将备份结果及状态上报给Job Manager。
+( 3 ) Task Manager在执行完快照备份后将备份结果及状态上报给Job Manager。
 
 ## 9.Flink运行模式
 

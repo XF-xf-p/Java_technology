@@ -1,6 +1,6 @@
 # ZooKeeper
 
-## 1.ZooKeeper
+## 1.Zookeeper概念
 
 ZooKeeper是一个分布式协调服务，其设计的初衷是为分布式软件提供一致性服务。Zoo Keeper提供了一个类似Linux文件系统的树形结构，ZooKeeper的每个节点既可以是目录也可以是数据，同时，ZooKeeper提供了对每个节点的监控与通知机制基于ZooKeeper一致性服务，可以方便地实现分布式锁、分布式选举、服务发现和监控、配置中心等功能。
 
@@ -64,7 +64,9 @@ ZooKeeper的选举机制被定义为：每个Server首先都提议自己是Leade
 
 ( 6) Leader根据Follower的Zxid确定同步点，至此，选举阶段完成。
 
-在选举阶段完成后，Leader通知其他Follower集群已经成为Uptodate状态，Follower收到Uptodate消息后，接收Client的请求并开始对外提供服务。
+( 7) 在选举阶段完成后，Leader通知其他Follower集群已经成为Uptodate状态，
+
+( 8) Follower收到Uptodate消息后，接收Client的请求并开始对外提供服务。
 
 下面以5台服务器Server1、Server2、Server3、Server4、Servers5的选主为例，假设它们的编号分别是1、2、3、4、5，按编号依次启动，它们的选举过程。
 
@@ -78,7 +80,33 @@ ZooKeeper的选举机制被定义为：每个Server首先都提议自己是Leade
 
 ( 5 ) Servers5启动：首先给自己投票，然后与其他服务器交换信息，发现Server3已经成为Leader，因此Server5成为Follower。
 
-## 4.ZooKeeper的数据模型
+## 4.Zookeeper工作原理（原子广播）
+
+1.Zookeeper的核心是原子广播，这个机制保证了各个server之间的同步。实现这个机制的协议叫做Zab协议。Zab协议有两种模式，它们分别是恢复模式和广播模式。
+
+2.当服务启动或者在领导者崩溃后，Zab就进入了恢复模式，当领导者被选举出来，且大多数server的完成了和leader的状态同步以后，恢复模式就结束了。
+
+3.状态同步保证了leader和server具有相同的系统状态.
+
+4.一旦leader已经和多数的follower进行了状态同步后，他就可以开始广播消息了，即进入广播状态。这时候当一个server加入zookeeper服务中，它会在恢复模式下启动，发现leader，并和leader进行状态同步。待到同步结束，它也参与消息广播。Zookeeper服务一直维持在Broadcast状态，直到leader崩溃了或者leader失去了大部分的followers支持。
+
+5.广播模式需要保证proposal被按顺序处理，因此zk采用了递增的事务id号(zxid)来保证。所有的提议(proposal)都在被提出的时候加上了zxid。
+
+6.实现中zxid是一个64为的数字，它高32位是epoch用来标识leader关系是否改变，每次一个leader被选出来，它都会有一个新的epoch。低32位是个递增计数。
+
+7.当leader崩溃或者leader失去大多数的follower，这时候zk进入恢复模式，恢复模式需要重新选举出一个新的leader，让所有的server都恢复到一个正确的状态。
+
+## 5.Znode有四种形式的目录节点
+
+1.PERSISTENT：持久的节点。
+
+2.EPHEMERAL：暂时的节点。
+
+3.PERSISTENT_SEQUENTIAL：持久化顺序编号目录节点。
+
+4.EPHEMERAL_SEQUENTIAL：暂时化顺序编号目录节点。
+
+## 6.ZooKeeper的数据模型
 
 ZooKeeper使用一个树形结构的命名空间来表示其数据结构，在结构上与标准文件系统非常相似，ZooKeeper树中的每个节点都被称为一个Znode。ZooKeeper的数据结构类似文件系统的目录树，ZooKeeper树中的每个节点都可以拥有子节点；与文件系统不同是，ZooKeeper的每个节点都存储了数据信息，同时提供对节点信息的监控（Watch）等操作。
 
@@ -112,7 +140,7 @@ ZooKepe中的节点有两种，分别为临时节点和永久节点。节点的�
 
 ZooKeeper的每个节点上都有Watch用于监控节点数据的变化，当节点状态发生改变时（Znode新增、删除、修改）将会触发Watch所对应的操作。在Watch被触发时，Zoo Keeper会向监控该节点的客户端发送一条通知说明节点的变化情况
 
-## 5.Zookeeper的安装
+## 7.Zookeeper的安装
 
 ( 1）下载ZooKeeper安装包：到ZooKeeper官网下载最新的安装包。
 
@@ -163,7 +191,7 @@ server.1=192.168.1.2:2888:3888
 server.2=192.168.1.2:2888:3888
 ```
 
-## 6.Zookeeper的应用场景
+## 8.Zookeeper的应用场景
 
 ZooKeeper可用于统一命名服务、配置管理、集群管理、分布式通知协调、分布式锁等应用场景。
 
@@ -191,7 +219,7 @@ ZooKeeper可用于统一命名服务、配置管理、集群管理、分布式�
 
 同时将锁节点设置为EPHEMERAL_SEQUENTIAL，这样该Znode可掌握全局锁的访问时序。
 
-## 7.ZooKeeper节点的操作
+## 9.ZooKeeper节点的操作
 
 下面以SpringBoot为例介绍ZooKeeper节点的操作。
 
@@ -230,4 +258,6 @@ ExecutorService pool= Executors.newFxedThreadPool(2);
 TreeCache cache= new TreeCache(clwatchPath); 
 cache.getListenable().addListener(listener,pool); 
 ```
+
+
 

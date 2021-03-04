@@ -2,7 +2,9 @@
 
 Hadoop是一个大数据解决方案，提供了一套分布式系统基础架构，核心内容包含HDFS ( Hadoop Distributed File System，分布式文件系统）、MapReduce计算引擎和YARN (Yet Another Resource Negotiator，另一种资源协调者）统一资源管理调度。
 
-其中，HDFS分为NameNode和DataNode，NameNode负责保存元数据的基本信息，DataNode负责具体数据的存储。MapReduce分为JobTracker和TaskTracker,JobTracker 负责任务的分发，TaskTracker负责具体任务的执行。
+其中，HDFS分为NameNode和DataNode，NameNode负责保存元数据的基本信息，DataNode负责具体数据的存储。
+
+MapReduce分为JobTracker和TaskTracker,JobTracker 负责任务的分发，TaskTracker负责具体任务的执行。
 
 Hadoop集群是Master/Slave( M/S ）架构，NameNode和JobTracker运行在Master节点上，DataNode和TaskTracker运行在Slave节点上。
 
@@ -82,7 +84,7 @@ MapReduce的作业生命周期包括作业提交与初始化、任务调度与�
 
 ( 1 ）作业提交与初始化：用户在执行Submit命令提交作业后，会通过Job Client将作业的相关信息（例如，程序JAR包、依赖JAR包、配置文件、分片元数据信息文件等）上传到HDFS。其中，分片元数据信息文件记录了每个输入分片的逻辑位置信息。然后Job Client通过RPC接口通知JobTracker有新作业提交。JobTracker在收到新作业提交的请求后，通过作业调度模块对作业进行初始化。在初始化完成后，调度模块会为作业创建一个JoblnProgress对象以跟踪作业的运行状况，同时JoblnProgress会为每个Task都创建一个TasklnProgress对象以跟踪每个任务的运行状况，一个TasklnProgress可能需要管理多个Task Attempt。
 
-( 2 任务调度与监控：通过JobTracker来完成。TaskTracker定时通过心跳向Job Tracker汇报当前节点的服务器资源使用情况。当服务器有空闲资源时，JobTracker会按照一定的策略选择一个合适的任务在该服务器上执行，该过程为任务的调度过程。任务调度过程的核心是优先考虑数据本地性，即Hadoop会尽量将任务在其所对应的数据节点上执行。除了作业的调度，JobTracker还负责跟踪作业的整个运行过程，当发现TaskTracker或Task运行失败时，JobTracker会将计算转移到其他健康的节点上；当发现某个Task的执行进度远落后于同一作业的其他Task时，JobTracker会重新启动一个相同的Task来执行，并以率先执行完成的Task计算结果作为最终结果。
+( 2） 任务调度与监控：通过JobTracker来完成。TaskTracker定时通过心跳向Job Tracker汇报当前节点的服务器资源使用情况。当服务器有空闲资源时，JobTracker会按照一定的策略选择一个合适的任务在该服务器上执行，该过程为任务的调度过程。任务调度过程的核心是优先考虑数据本地性，即Hadoop会尽量将任务在其所对应的数据节点上执行。除了作业的调度，JobTracker还负责跟踪作业的整个运行过程，当发现TaskTracker或Task运行失败时，JobTracker会将计算转移到其他健康的节点上；当发现某个Task的执行进度远落后于同一作业的其他Task时，JobTracker会重新启动一个相同的Task来执行，并以率先执行完成的Task计算结果作为最终结果。
 
 ( 3 ）任务运行环境准备：在运行环境准备期间，TaskTracker会为每个Task都申请一定的独立资源并启动一个JVM来运行，以避免不同的Task在运行过程中相互影响；同时，TaskTracker使用操作系统进程来实现资源隔离，以防止Task之间相互争抢系统资源（主要指内存、CPU等资源）。
 
@@ -123,6 +125,8 @@ Contain是YARN所管理的集群中资源的抽象，它封装了每个节点上
 ### YARN的任务提交和运行流程
 
 YARN的任务提交由Client向ResourceManager发起，然后由ResourceManager启动ApplicationMaster并为其分配用于运行作业的Container资源，ApplicationMaster在收到Container资源列表后初始化Container再交由NodeManager来启动Container容器并运行具体的任务（MapReduce任务或其他Spark、Flink任务）。在任务运行完成后，ApplicationMaster向ResourceManager注销自己并释放资源。
+
+![](D:\workspace\java\images\Hadoop001.png)
 
 ( 1 ) Client向ResourceManager提交应用程序，其中包括启动该应用程序ApplicationMaster的必需信息，例如，ApplicationMaster程序、启动ApplicationMaster命令、用户程序等。
 
