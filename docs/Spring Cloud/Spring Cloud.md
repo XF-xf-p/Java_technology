@@ -25,3 +25,7 @@ Spring Cloud为企业级分布式Web系统构建提供了一站式的解决方�
 - SpringCloud Connectors: Spring Cloud Connectors为在云平台上运行的基于JVM的应用程序提供了一个简单的抽象，可以在JVM运行时发现绑定的服务和部署信息，并且支持将发现的服务注册为Spring Bean。
 - Spring Cloud Cluster：提供LeaderShip（选举）功能，如ZooKeeper、Redis、Hazeleast、Consul等常见状态模式的抽象和实现。
 - Spring Cloud Starters: Spring Boot式的启动项目，为SpringCloud提供开箱即用的依赖管理。
+
+## 2.Spring Cloud核心架构图
+
+![](D:\workspace\Java-Interview-Offer\images\springcloud002.png)

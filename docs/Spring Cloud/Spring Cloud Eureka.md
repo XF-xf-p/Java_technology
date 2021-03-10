@@ -1,226 +1,117 @@
-## 1.Spring Cloud Eureka 
+# **Eureka**
 
-Spring Cloud Eureka是SpringCloud Netflix微服务套件中的一部分，它基于netflix-eureka做了二次封装，主要负责微服务架构中的服务治理。
+## 1.服务发现（Service Discovery）
 
-服务治理必须实现服务注册和服务发现的功能。服务注册和发现指每个微服务向注册中心汇报自己的服务地址、服务内容、端口和服务状态等信息。当有服务依赖此服务时，从注册中心获取可用的服务列表井发起请求，服务消费者不用关心服务所处的位置和状态，具体用哪个实例对外提供服则由注册中心决定。
+它抽象出来了一个注册中心，当一个新的服务上线时，它会将自己的 IP 和端口注册到注册中心去，会对注册的服务进行定期的心跳检测，当发现服务状态异常时将其从注册中心剔除下线。服务 A 只要从注册中心中获取服务 B 的信息即可，即使当服务 B 的 IP 或者端口变更了，服务 A 也无需修改，从一定程度上解耦了服务。服务发现目前业界有很多开源的实现，比如 `apache` 的 [zookeeper](https://github.com/apache/zookeeper)、 `Netflix` 的 [eureka](https://github.com/Netflix/eureka)、 `hashicorp` 的 [consul](https://github.com/hashicorp/consul)、 `CoreOS` 的 [etcd](https://github.com/etcd-io/etcd)。
 
-## 2.Spring Cloud Eureka的原理
+## 2.Eureka 是什么
 
-Eureka实现了服务注册和服务发现的功能。Eureka角色分为注册中心（Eureka Server）和客户端（Eureka Client)。 客户端指注册到注册中心的具体的服务实例，又可抽象分为服务提供者和服务消费者。服务提供者主要用于将自己的服务注册到服务中心供服务消费者使用，服务消费者从注册中心获取相应的服务提供者对应的服务地址并调用该服务。
+采用的是 Client / Server 模式进行设计，基于 http 协议和使用 Restful Api 开发的服务注册与发现组件，提供了完整的服务注册和服务发现，可以和 `Spring Cloud` 无缝集成。其中 Server 端扮演着服务注册中心的角色，主要是为 Client 端提供服务注册和发现等功能，维护着 Client 端的服务注册信息，同时定期心跳检测已注册的服务当不可用时将服务剔除下线，Client 端可以通过 Server 端获取自身所依赖服务的注册信息，从而完成服务间的调用。
 
-![](D:\workspace\Java\images\Springcloud001.png)
+## 3.服务注册中心（Eureka Server）
 
-在Eureka中，同一个实例可能既是服务提供者，也是服务消费者。Eureka服务端也会向另一个服务端实例注册自己的信息，从而实现Eureka Server集群。其核心概念有服务注册、服务发现、服务同步和服务续约等。
+我们在项目中引入 `Eureka Server` 的相关依赖，然后在启动类加上注解 `@EnableEurekaServer` ，就可以将其作为注册中心。
 
-1.服务注册
+我们继续添加两个模块 `service-provider` ， `service-consumer` ，然后在启动类加上注解 `@EnableEurekaClient` 并指定注册中心地址为我们刚刚启动的 `Eureka Server` ，再次访问可以看到两个服务都已经注册进来了。
 
-在服务启动时，服务提供者会将自己的信息注测到Eureka Server, Eureka Server收到信息后，会将数据信息存储在一个双层结构的Map中，其中，第一层的Key是服务名，第二层的Key是具体服务的实例名。
+可以看到 `Eureka` 的使用非常简单，只需要添加几个注解和配置就实现了服务注册和服务发现，接下来我们看看它是如何实现这些功能的。
 
-```
-／／注册表数据存储InstanceInfo 
-private final ConcurrentHashMap<String, Map<String, Lease＜InstanceInfo>> registry= new ConcurrentHashMap<String,Map<String, Lease<InstanceInfo>>>();／／双层嵌套的HashMap
-／／第一层存储的Key为AppName应用名称（同一个微服务节点可能会有多个实例）／／第二层存储的Key为InstanceName的实例名称
-```
+### 服务注册（Register）
 
-2.服务同步
+注册中心提供了服务注册接口，用于当有新的服务启动后进行调用来实现服务注册，或者心跳检测到服务状态异常时，变更对应服务的状态。服务注册就是发送一个 `POST` 请求带上当前实例信息到类 `ApplicationResource` 的 `addInstance` 方法进行服务注册。
 
-在Eureka Server集群中，当一个服务提供者向其中一个Eureka Server注册服务后，该Eureka Server会向集群中的其他Eureka Server转发这个服务提供者的注信息，从而实现Eureka Server之间的服务同步。
+可以看到方法调用了类 `PeerAwareInstanceRegistryImpl` 的 `register` 方法，该方法主要分为两步：
 
-3.服务续约
+1. 调用父类 `AbstractInstanceRegistry` 的 `register` 方法把当前服务注册到注册中心
+2. 调用 `replicateToPeers` 方法使用异步的方式向其它的 `Eureka Server` 节点同步服务注册信息
 
-当服务提供者在注册中心完成注册后，会维护一个续约请求来持续发送信息给该Eureka Server表示其正常运行，当Eureka Server长时间收不到续约请求时，会将该服务实例从服务列表中剔除。
+服务注册信息保存在一个嵌套的 `map` 中，
 
-4.服务启动
+第一层 `map` 的 `key` 是应用名称（对应 `Demo` 里的 `SERVICE-PROVIDER` ），第二层 `map` 的 `key` 是应用对应的实例名称（对应 `Demo` 里的 `mghio-mbp:service-provider:9999` ），一个应用可以有多个实例。
 
-当一个Eureka Server初始化或重启时，本地注册服务为空。Eureka Server首先调syncUp（）从别的服务节点获取所有的注册服务，然后执行Register操作，完成初始化，从而同步所有的服务信息。
+### 服务续约（Renew）
 
-5.服务下线
+服务续约会由服务提供者（比如 `Demo` 中的 `service-provider` ）定期调用，类似于心跳，用来告知注册中心 `Eureka Server` 自己的状态，避免被 `Eureka Server` 认为服务时效将其剔除下线。服务续约就是发送一个 `PUT` 请求带上当前实例信息到类 `InstanceResource` 的 `renewLease` 方法进行服务续约操作。
 
-当服务实例正常关闭时，服务提供者会给注册中心发送一个服务下线的消息，注册中心收到信息后，会将该服务实例的状态置为下线，并把该服务下线的信息传播给其他服务实例。
+进入到 `PeerAwareInstanceRegistryImpl` 的 `renew` 方法可以看到，服务续约步骤大体上和服务注册一致，先更新当前 `Eureka Server` 节点的状态，服务续约成功后再用异步的方式同步状态到其它 `Eureka Server` 节上。
 
-6.服务发现
+### 服务下线（Cancel）
 
-个服务例依赖另个服务时，这个服务实例作为服务消费者会发个信息给注册中心，请求获取注册的服务清单，注册中心会维护份只读的服务清单返回给服务消费者
+当服务提供者（比如 `Demo` 中的 `service-provider` ）停止服务时，会发送请求告知注册中心 `Eureka Server` 进行服务剔除下线操作，防止服务消费者从注册中心调用到不存在的服务。服务下线就是发送一个 `DELETE` 请求带上当前实例信息到类 `InstanceResource` 的 `cancelLease` 方法进行服务剔除下线操作。
 
-7.失效剔除
+进入到 `PeerAwareInstanceRegistryImpl` 的 `cancel` 方法可以看到，服务续约步骤大体上和服务注册一致，先在当前 `Eureka Server` 节点剔除下线该服务，服务下线成功后再用异步的方式同步状态到其它 `Eureka Server` 节上。
 
-注册中心为每个服务设定一个服务失效的时间。当服务提供者无法正常提供服务，而注册中心又没有收到服务下线的信息时，注册中心会创建一个定时任务，将超过一定时间而没有收到服务续约消息的服务实例从服务清单中剔除。失效时间可以通过eureka. instance. leaseExpirationDurationlnSeconds进行配置，定期扫描时间可以通过eureka.server.evictionlntervalTimerlnMs进行配
+### 服务剔除（Eviction）
 
-置。
+服务剔除是注册中心 `Eureka Server` 在启动时就启动一个守护线程 `evictionTimer` 来定期（默认为 `60` 秒）执行检测服务的，判断标准就是超过一定时间没有进行 `Renew` 的服务，默认的失效时间是 `90` 秒，也就是说当一个已注册的服务在 `90` 秒内没有向注册中心 `Eureka Server` 进行服务续约（Renew），就会被从注册中心剔除下线。失效时间可以通过配置 `eureka.instance.leaseExpirationDurationInSeconds` 进行修改，定期执行检测服务可以通过配置 `eureka.server.evictionIntervalTimerInMs` 进行修改。
 
-## 3.Spring Cloud Eureka的使用
+## 4.服务提供者（Service Provider）
 
-### 注册中心的定义
+对于服务提供方（比如 `Demo` 中的 `service-provider` 服务）来说，主要有三大类操作，分别为 `服务注册（Register）` 、 `服务续约（Renew）` 、 `服务下线（Cancel）` ，接下来看看这三个操作是如何实现的。
 
-Eureka Server是服务的注册中心，服务提供者在启动时会将服务信息注册到注册中心。它维护了集群中的服务列表和状态，要实现一个注册中心分为4步：首先在pom.xml中引入spring-cloud-starter-eureka-server依赖，然后通过@EnableEurekaServer注解开启服务注册、发现功能，接下来配置appication.properties配置文件，最后一步是服务的访问和使用。
+### 服务注册（Register）
 
-( 1 ) pomxml添加依赖
+一个服务要对外提供服务，首先要在注册中心 `Eureka Server` 进行服务相关信息注册，能进行这一步的前提是你要配置 `eureka.client.register-with-eureka=true` ，这个默认值为 `true` ，注册中心不需要把自己注册到注册中心去，把这个配置设为 `false`。
 
-( 2）通过＠EnableEurekaServer注解开启对注册中心的支持
+### 服务续约（Renew）
 
-```
-@SpringBootApplicaton
-@EnableEurekaServer 
-public class EurekaserverApplication{ 
-	public static void main(String[]args) { 
-		SpringApplication.run(EurekaserverApplication.class, args); 
-	}
-}
-```
+服务续约是由服务提供者方定期（默认为 `30` 秒）发起心跳的，主要是用来告知注册中心 `Eureka Server` 自己状态是正常的还活着，可以通过配置 `eureka.instance.lease-renewal-interval-in-seconds` 来修改，当然服务续约的前提是要配置 `eureka.client.register-with-eureka=true` ，将该服务注册到注册中心中去。
 
-( 3) application.properties配置
+### 服务下线（Cancel）
 
-配置EurekaServer的服务名称、端口和服务地址。在默认情况下，服务注册中心会将自己业作为客户端来尝试注册，因此，应用程序需要禁用其注册行为。具体参数为eureka.client. register-with-eureka=flase和eureka.client.fetch-registry=false。
+当服务提供者方服务停止时，要发送 `DELETE` 请求告知注册中心 `Eureka Server` 自己已经下线，好让注册中心将自己剔除下线，防止服务消费方从注册中心获取到不可用的服务。这个过程实现比较简单，在类 `DiscoveryClient` 的 `shutdown` 方法加上注解 `@PreDestroy` ，当服务停止时会自动触发服务剔除下线，执行服务下线逻辑。
 
-```
-spring.application.name=eureka-server 
-server.port=9001 
-eureka.instance.hostname=localhost 
-eureka.client.register-with-eureka=false
-eureka.client.fetch-registry=false
-spring.main.allow-bean-definition-overriding=true
-```
+## 5.服务消费者（Service Consumer）
 
-Eureka Server的常用配置
+这里的服务消费者如果不需要被其它服务调用的话，其实只会涉及到两个操作，分别是从注册中心 `获取服务列表（Fetch）` 和 `更新服务列表（Update）` 。如果同时也需要注册到注册中心对外提供服务的话，那么剩下的过程和上文提到的服务提供者是一致的，这里不再阐述，接下来看看这两个操作是如何实现的。
 
-- eureka. instance. prefer-ip-address ：将指定的IP地址注册到Eureka Server上，如果不配置，默认为机器的主机名
-- eureka.server.enable-self-preservation：设置开启或关闭自我保护
-- eureka.server. renewal-percent-threshoId：设置自我保护系数，默认为0.85
-- eureka.client.register-with-eureka ：设置是否将自己注册到Eureka Server，默认为true
-- eureka.client.fetch-registry：设置是否从Eureka Server获取注册信息，默认为true
-- eureka.server.eviction-interval-timer-in-ms ：检测服务状态间隔时间，默认为60000ms，即60s
-- eureka.server. wait-time-in-ms-when-sync-empty：设置同步为空的等待时间，默认为5min，在同步等待期间，注册中心暂停向客户端提供服务的注册信息
-- eureka.server.number-of-replication-retries：设置Eureka Server服务的注册信息同步失败的重试次数，默认为5次。
+### 获取服务列表（Fetch）
 
-（4 ）访问服务地址
+服务消费者方启动之后首先肯定是要先从注册中心 `Eureka Server` 获取到可用的服务列表同时本地也会缓存一份。这个获取服务列表的操作是在服务启动后 `DiscoverClient` 类实例化的时候执行的。
 
-启动应用程序，在浏览器地址栏中输入http://localhost:9001访问注册中心.
+能发生这个获取服务列表的操作前提是要保证配置了 `eureka.client.fetch-registry=true` ，该配置的默认值为 `true`。
 
-### 服务提供者的定义
+### 更新服务列表（Update）
 
-服务提供者（Service Provider）即Eureka Client，是服务的定义者。服务提供者在启动时，将自身的服务注册到注册中心，服费消费者从注册中心请求到服务列表后，便会调用具体的服务提供者的服务接口，实现远程过程调用。要实现一个服务提供者分为5步：首先在pom.xml中引入spring-cloud-starter-eureka依赖，然后通过@EnableEurekaClient注解开启服务发现的功能，接着配置application.properties配置文件，再定义服务接口，最后一步是服务的访问和使用
+由上面的 `获取服务列表（Fetch）` 操作过程可知，本地也会缓存一份，所以这里需要定期的去到注册中心 `Eureka Server` 获取服务的最新配置，然后比较更新本地缓存，这个更新的间隔时间可以通过配置 `eureka.client.registry-fetch-interval-seconds` 修改，默认为 `30` 秒，能进行这一步更新服务列表的前提是你要配置 `eureka.client.register-with-eureka=true` ，这个默认值为 `true` 。
 
-( 1) pom.xml添加依赖
+## 6.**注册表存储结构**
 
-( 2) 通过@EnabeEurekaClient注解开启服务发现的功能
+![](D:\workspace\Java-Interview-Offer\images\Eureka001.webp)
 
-```
-@SpringBootApplication
-@EnableEurekaClient 
-public class EurekaclientApplication { 
-	public static void main(String[]args) { 
-		SpringApplication.run(EurekaclientApplication.class,args); 
-	}
-}
-```
+- 这个名字叫做**registry**的**CocurrentHashMap**，就是注册表的核心结构。
+- Eureka Server的注册表直接基于**纯内存**，即在内存里维护了一个数据结构。各个服务的注册、服务下线、服务故障，全部会在内存里维护和更新这个注册表。
+- 各个服务每隔30秒拉取注册表的时候，Eureka Server就是直接提供内存里存储的有变化的注册表数据给他们就可以了。同样，每隔30秒发起心跳时，也是在这个纯内存的Map数据结构里更新心跳时间。
+- 这个ConcurrentHashMap的key就是服务名称,value则代表了一个服务的多个服务实例。
+- **Map<String, Lease<InstanceInfo**>>,这个Map的key就是**服务实例的id**,value是一个叫做**Lease**的类，它的泛型是一个叫做**InstanceInfo**的东西,这个InstanceInfo就代表了**服务实例的具体信息**，比如机器的ip地址、hostname以及端口号。而这个Lease，里面则会维护每个服务**最近一次发送心跳的时间**.
 
-( 3 ) application.properties配置
+## 7.**Eureka Server端优秀的多级缓存机制**
 
-配置Eureka Server的服务名称、端口和注册中心的地址
+- 在拉取注册表的时候：
 
-```
-spring.application.name=eureka-client 
-server.port=9002 eureka.client.serviceUrl.defaultZone=http://localhost:9001/eureka/ 
-```
-
-Eureka客户端配置：
-
-- service-uiI ：配置服务注册中心的地址，如果服务注册中心为高可用集册，则多个注册中心的地址用逗号分割。如果服务注册中心加入了安全验证，则在IP地址前加上域名密码：http://<username>:<password>@localhost: 8761 /eureka 
-- fetch-registry ：是否从Eureka Server获取注册信息，默认为true
-- register-with-eureka：是否将自身的实例信息注册到Eureka Server，默认为true
-- eureka-connection-idIe-timeout-seconds：Eureka Server连接空闲的关闭时间，单位：s，默认为30
-- eureka-server-connect-timeout-seconds：连接Eureka Server的超时时间，单位：s，默认为5
-- eureka-server-read-timeout-seconds：读取Eureka Server信息的超时时间，单位：s，默认为8
-- eureka-server-total-connections：从Eureka Client到所有Eureka Server的连接总数，默认为200
-- eureka-server-total-connections-per-host：从Eureka Client到每个Eureka Server的连接总数，默认为50
-- eureka-service-url-poll-interval-seconds：轮询Eureka Server地址更改的间隔时间，单位：s，默认为300
-- initial-instance-info-replication-interval-seconds：初始化实例信息到Eureka Server的间隔时间，单位：s，默认为40
-- instance-info-replication-interval-seconds：更新实例信息的变化到Eureka Server的间隔时间，单位：s，默认为30
-- registry-fetch-interval-seconds ：从Eureka Server获取注册信息的间隔时间，单位：s，默认为30
-
-(4 ）定义服务
-
-```
-@RestController
-public class DiscoveryController { 
-	@Autowired 
-	private DiscoveryClient discoveryClient;
-    @Value (”${server.port}”) 
-    private String port;
-    @GetMapping(”/serviceProducer")
-    public Map serviceProducer() { 
-		//1服务提供者的信息
-		String services =”Services:”+ discoveryClient.getServices() +”port :”+port; 
-		//2：服务提者返回的数据
-		Map result ＝new HashMap(); 
-		result. put (”serviceProducer”,services); 
-		result. put (”time ”，System.currentTimeM11lis()); 
-		return result;
-	}
-}
-```
-
-上述代码定义了一个名为serviceProducer的服务，服务地址为“／serviceProducer"，其中，通过DiscoveryClient获取服务列表中可用的服务地址。
-
-(5） 调用服务
-
-在浏览器地址输入http://localhost:9002/serviceProducer访问服务
-
-### 服务消费者的定义
-
-服务消费者（Service Consumer）即Eureka Consumer，是服务的具体使用者，一个服务实例常常即是服务消费者也是服务提供者。要实现一个服务消费者分为5步：首先在pom.xm中引人spring-cloud-starter-eureka依赖，然后通过@EnabeEurekaClient注解开启服务发现的功能，如果通过Feign调用，则需要通过@EnabeFeignClients开启对Feign的支持，接下来配置application. properties配置文件，最后调用服务提供者暴露出来的服务接口。
-
-( 1) pom.xml添加依赖
-
-( 2 )通过@EnabeEurekaClient注解开启服务发现的功能，如果通过Feign远程调用，则需要通过@EnableFeignClients开启对Feign的支持；如果通过RestTemplate调用，则需要定义RestTemplate实例
-
-( 3 ) application.properties配置
-
-配置服务名称、端口和注册中心的地址
-
-( 4)调用RestTemplate服务
-
-```
-@RestController 
-@Autowired 
-private RestTemplate restTemplate; 
-@RequestMapping(value =”/consume/remote ”,method = RequestMethod.GET) 
-public String service() {
-	return restTemplate.getForEntity(”http://EUREKACLIENT/serviceProducer”,String.class) .getBody(); 
-```
-
-上述代码定义了一个名为service的服务，服务地址为“/consume/remote”，通过RestTemplate调用远程服务。其中，“/EUREKA-CLIENT”为服务提供者的实例名称，serviceProducer为服务＠RequestMapping映射后的地址。
-
-( 5 ）调用服务
-
-在浏览器地址栏中输入http://localhost: 9003 /consume/remote访问服务
-
-( 6）定义基于Feign接口的服务
-
-基于Feign接口的服务调用简单方便，上述代码在EurekaconsumerApplication中已经通过加入＠EnableFeignClients开启了对Feign的支持，这里只需要应用程序定义Feign接口便可。
-
-定义Feign接口分为2步：首先通过@FeignClient（“serviceProducerName”）定义需要代理的服务实例名（“EUREKA-CLIENT”即服务提供者的实例名称），然后定义一个调用远程服务的方法。方法中@RequestMapping的value（这里为“／serviceProducer"）需要与服务提供者的地址相对应，这样，Feign才能知道代理需要具体调用服务提供者的哪个方法
-
-```
-/** 
- * @FeignClient用于通知Feign组件对该接口进行代理（不需要编写接口实现），使用者可直接通过＠Autowired注入
- *＠RequestMapping表示在调用该方法需要向／serviceProducer发送GET请求
- */ 
-@FeignClient("EUREKA-CLIENT”) 
-public interface Servers { 
-	@RequestMapping(value="/serviceProducer”，method= RequestMethod.GET) 
-	Map serviceProducer();
-}
-```
-
-(7）调用基于Feign接口的服务
-
-```
-@Autowired Servers server; 
-@RquestMapping(value=”/consume/feign”,method = RequestMethod.GET} 
-public Map serviceFeign() { 
-	return server.serviceProducer();
-}
-```
-
-上述代码通过注入Servers并调用其serviceProducer（）方法来实现服务的调用。在浏览器地址中输入http://Iocalhost:9003/consume/feign查看服务结果
+  - 首先从**ReadOnlyCacheMap**里查缓存的注册表。
+
+  - 若没有，就找**ReadWriteCacheMap**里缓存的注册表。
+
+  - 如果还没有，就从**内存中获取实际的注册表数据。**
+
+- 在注册表发生变更的时候：
+
+  - 会在内存中更新变更的注册表数据，同时**过期掉ReadWriteCacheMap**。
+
+  - 此过程不会影响ReadOnlyCacheMap提供人家查询注册表。
+
+  - 一段时间内（默认30秒），各服务拉取注册表会直接读ReadOnlyCacheMap
+
+  - 30秒过后，Eureka Server的后台线程发现ReadWriteCacheMap已经清空了，也会清空ReadOnlyCacheMap中的缓存
+
+  - 下次有服务拉取注册表，又会从内存中获取最新的数据了，同时填充各个缓存。
+
+### **多级缓存机制的优点是什么？**
+
+- 尽可能保证了内存注册表数据不会出现频繁的读写冲突问题。
+
+- 并且进一步保证对Eureka Server的大量请求，都是快速从纯内存走，性能极高。
+
+
+

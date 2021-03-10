@@ -34,5 +34,17 @@ LinkedList采用双向链表结构存储元素，在对LinkedList进行插入和
 
 和尾部的元素，因此有时可以被当作堆栈、队列或双向队列使用。
 
+## 2.ArrayList和LinkedList和Vector的区别
+
+都实现了List 接口。
+
+ArrayList 是一个可改变大小的数组.当更多的元素加入到ArrayList中时,其大小将会动态地增长.内部的元素可以直接通过get与set方法进行访问,因为ArrayList本质上就是一个数组.
+
+LinkedList 是一个双链表,在添加和删除元素时具有比ArrayList更好的性能.但在get与set方面弱于ArrayList.
+
+Vector和ArrayList在更多元素添加进来时会请求更大的空间。Vector每次请求其大小的双倍空间，而ArrayList每次对size增长50%.
+
+而 LinkedList 还实现了 Queue 接口,该接口比List提供了更多的方法,包括 offer(),peek(),poll()等.
+
 
 

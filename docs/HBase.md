@@ -168,79 +168,43 @@ HBase这种基于标记删除的方式是按顺序写磁盘的，因此很容易
 
 HBase的数据更新指在原有的数据基础上新加一条数据并更新该数据的版本号，用户查询的时候默认查询最新的一条数据，也可以指定版本号查询数据。更新操作也是按顺序写磁盘的，避免了海量数据的查询、更新和重建索引的流程，因此，HBase的更新操作也很快。
 
-## 7.HBase的安装
+## 7.HBase架构上的特点
 
-HBase的集群管理依赖ZooKeeper，可以单独地部署ZooKeeper，也可以使用HBase内置的ZooKeeper。HBase可以基于简单的文件系统作为底层数据的存储，也可以基于HDFS作为底层数据的存储。为了简单起见，下面以依赖HBase内置的ZooKeeper和基于文件系统存储的方式介绍HBase的安装方式。具体依赖独立ZooKeeper和HDFS的部署方式建议用户参照宫网。
+（1）强一致读写
 
-( 1 ）下载HBase安装包。
+他不是zk那种最终一致性，是强一致的，你写成功了立马就可以读。这个功能是极为实用的，他是依靠的分布式存储才做到的，zk那种是属于主从同步，你读follower机器是可能读到不一致数据的.
 
-( 2 ）解压HBase安装包：在HBase下载目录下执行以下命令解压安装包。
+（2）高可用 
 
-$tar -xzf hbase-1.4.10-bin.tar.gz 
+每台机器上部署一个RegionServer，管理一大堆的region数据分片，RegionServer都是支持高可用的，一个RegionServer挂掉不会导致数据丢失，他自动可以由别的机器接管他的工作运行下去.
 
-( 3 ) hbase-env.sh配置：在HBase配置文件目录下执行以下命令配置hbase-env.sh配置文件。
+（3）支持mapreduce/spark这种分布式计算引擎
 
-$ cd hbase-1.4.10 -bin
+对hbase里的数据进行分布式计算，可以从hbase里分布式抽数据去计算，也可以把计算后的结果写入hbase分布式存储.
 
-$ vim conf/hbase-env.sh 
+（4）Java API/thrift API/REST API的支持 
 
-在配置文件中加入JAVA_HMOE安装地址，声明HBase所使用的Java环境。在配置文件中加入HBASE_MANAGES_ZK=true，声明HBase使用内置的ZooKeeper，如果使用独立的ZooKeeper，则将该属性设为false。
+当然支持Java API了，咱们的Java业务系统经常会有海量数据NoSQL存储的需求，此时就可以基于Java API来操作hbase里的数据了. 
 
-export JAVA_HOME＝／usr/Java/jdkl.8.0_201 
+（5）支持协处理器，块缓存和布隆过滤器，可以用于优化查询性能 
 
-export HBASE_MANAGES_ZK=true 
+（6）hbase现在最新版本都是支持web界面的方式来对hbase集群进行运维管理的
 
-( 4) hbase-site.xml配置：在HBase配置文件目录下执行以下命令配置hbase-site.xml
+## 8.概念
 
-配置文件。
+（1）分布式架构 
 
-$ cd hbase-1.4.10 -bin
+hbase定位是分布式nosql数据库，把自己的nosql数据库的功能是通过多台机器来实现的，有多个RegionServer，分布式管理数据，分布式执行你的各种nosql数据库的操作.
 
-$ vim conf/hbase-site.xml
+（2）分布式数据存储和自动数据分片 
 
-在配置文件中加入hbase.rootdir属性，设置HBase文件存储的目录，将HBase数据存储在本地的／usr/hbase-2.2.0-bin/hbase_data目录下。如果使用HDFS存储，则将Value设置为HDFS的NameNode服务节点即可（见注释部分代码）。在配置文件中加入hbase. zookeeper. property. dataDir 属性，设置ZooKeeper的数据存储地址为/usr/base-2.2.0-bin/zk_data，如果使用独立的ZooKeeper，则不需要设置ZooKeeper的数据存储地址，直接设置hbase.zookeeper.quorum的服务地址（见注释部分代码），并在hbase-env. sh设置export HBASE_MANAGES_ZK=false。
+这个功能是极为强大的，比如你搞一个hbase里的表，然后在表里搞很多很多的数据，这个表会分为很多的region，每个region里是一个数据分片，然后这些region数据分片就会分散在多台机器上
 
-( 5 ）启动HBase：在HBase安装目录下执行start-hbase.sh文件，启动HBase。
+假设你的表里的数据太多了，此时region会自动进行分裂，分裂成更多的region，自动分散在更多的机器上，对我们使用是极为方便的.
 
-$./bin/start-hbase.sh 
+（3）集成hdfs作为分布式文件存储系统
 
-执行后在终端输入Jps可以看到HMaster、HRegionServer、HQuorumPeer3个进程，说明启动成功。其中，HMaster为集群的管理节点进程，HRegionServer为集群的存储节点进程，HQuorumPeer为HBase内置的ZooKeeper进程。
-
-( 6 ）查看HBase Web Manager页面：在浏览器地址栏中输入http://127.0.0.1:16010查看HBase管理页面，该页面记录了HBase整个集群的主节点HMaster和Region Server的配置信息、服务状态和表信息。
-
-( 7 ）使用HBase Shell：在HBase安装目录下执行./bin/hbase shell进入HBase交互式命令行。
-
-$ ./bin/hbase shell 
-
-输入list查看HBase中的表，可以看到有4个表。
-
-## 8.基于SpringBoot的HBase应用
-
-( 1 ）添加pom.xml依赖：新建Spring Boot项目，并在pom.xml中添加如下HBase客户端依赖。
-
-( 2 ）添加配置文件：在appIication.properties配置文件中添加如下HBase配置，其中HBase.nodes为ZooKeeper的服务地址，客户端操作HBase集群的基础数据都来自Zoo Keeper。
-
-HBase.nodes=127.0.0.1:2181 
-
-HBase.maxsize=5000
-
-( 3）定义HBaseConfig类：按照如下代码定义HBaseConfig类，这里首先开启@Configur ation注解将配置文件中的属性映射到HBaseConfig类的属性，然后使用HBaseConfiguration.create（）定义HBase配置文件对象conf，最后使用conf中的配置实例化HBaseService。
-
-( 4 ) 定义HBaseService类：按照如下代码定义HBaseService，该类用于封装基本的HBase操作。其中，Configuration用于存储HBase的配置信息，Connection表示HBase的客户端连接。同时定义类的close（）方法，实现在客户端操作完成后释放相关资源。
-
-( 5 ) 定义创建表方法createTable：在HBaseService类中加入createTable(String  tableName, String cf)方法，实现创建表。其中，tableName为HBase表名称，cf为列族名称。
-
-( 6 ）定义添加数据方法putData：在HBaseService类中加入putData(String tableName, String rowKey，String familyName, String[] columns, String[] values）方法，实现向HBase表添加一条数据。其中，tableName为HBase表的名称，rowKey为该数据的主键，cf为列族名称，columns为要添加数据的列，values为列上所对应的数据。columns中的列要与values中的数据一一对应。
-
-( 7 ) 定义根据主键查询数据方法get：在HBaseService类中加入get(String tableName, String cf, String rowKey）方法，实现根据主键唯一查询一条HBase数据。其中，tableName为HBase表的名称，cf为列族名称，rowKey为该数据的主键。应用程序通过调用table.get(get）方法从HBase中查询数据，并取出其中每个单元格的数据。
-
-( 8 ）定义根据主键范围查询方法getResultScanner：在HBaseService类中加入getResultScanner(String tableName,String startRowKey,String stopRowKey)方法，实现跟据主键范围查询。其中，tableName为表名，startRowKey为主键的开始位置，stopRowKey为主键的结束位置，HBase范围的查询通过在Scan中设置withStartRow和withStopRow来实现。HBase中的数据默认根据主键进行排序。
-
-## 9.概念
-
-base是分布式、面向列的开源数据库（其实准确的说是面向列族）。HDFS为Hbase提供可靠的底层数据存储服务，MapReduce为Hbase提供高性能的计算能力，Zookeeper为Hbase提供稳定服务和Failover机制，因此我们说Hbase是一个通过大量廉价的机器解决海量数据的高速存储和读取的分布式数据库解决方案。
-
-## 10.列式存储
+## 9.列式存储
 
 列方式所带来的重要好处之一就是，由于查询中的选择规则是通过列来定义的，因此整个数据库是自动索引化的。
 

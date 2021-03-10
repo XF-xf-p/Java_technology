@@ -90,61 +90,75 @@ Consumer Group是一个消费者组，同一个Consumer Group中的多个Consume
 
 同一个Partition内的消息是有序的，多个Partition上的数据无法保证时间的有序性。Consumer通过Pull方式消费消息。Kafka不删除已消费的消息。在Partition内部，Kafka消息按顺序读写磁盘数据，以时间复杂度O(1)的方式提供消息的持久化功能.
 
-## 6.Kafka的安装
+## 6.Kafka 的高可用性
 
-Kafka的安装依赖Java和ZooKeeper，
+Kafka 一个最基本的架构认识：由多个 broker 组成，每个 broker 是一个节点；你创建一个 topic，这个 topic 可以划分为多个 partition，每个 partition 可以存在于不同的 broker 上，每个 partition 就放一部分数据。
 
-( 1）下载Kafka安装包。
+这就是**天然的分布式消息队列**，就是说一个 topic 的数据，是**分散放在多个机器上的，每个机器就放一部分数据**。
 
-( 2 ）解压Kafka安装包：到Kafka下载目录执行以下命令解压安装包
+实际上 RabbitMQ 之类的，并不是分布式消息队列，它就是传统的消息队列，只不过提供了一些集群、HA(High Availability, 高可用性) 的机制而已，因为无论怎么玩儿，RabbitMQ 一个 queue 的数据都是放在一个节点里的，镜像集群下，也是每个节点都放这个 queue 的完整数据。
 
-```
-tar -xzf kafka 2.12-2.2.0.tgz 
-```
+Kafka 0.8 以后，提供了 HA 机制，就是 replica（复制品） 副本机制。每个 partition 的数据都会同步到其它机器上，形成自己的多个 replica 副本。所有 replica 会选举一个 leader 出来，那么生产和消费都跟这个 leader 打交道，然后其他 replica 就是 follower。写的时候，leader 会负责把数据同步到所有 follower 上去，读的时候就直接读 leader 上的数据即可。只能读写 leader？很简单，**要是你可以随意读写每个 follower，那么就要 care 数据一致性的问题**，系统复杂度太高，很容易出问题。Kafka 会均匀地将一个 partition 的所有 replica 分布在不同的机器上，这样才可以提高容错性。
 
-( 3 ）配置Kafka：到Kafka配置文件目录执行以下命令并配置server.properties配置
+如果某个 broker 宕机了，没事儿，那个 broker 上面的 partition 在其他机器上都有副本的。如果这个宕机的 broker 上面有某个 partition 的 leader，那么此时会从 follower 中**重新选举**一个新的 leader 出来，大家继续读写那个新的 leader 即可。这就有所谓的高可用性了。
 
-```
-cd kafka 2.12-2.2.0 vim config/server properties 
-```
+**写数据**的时候，生产者就写 leader，然后 leader 将数据落地写本地磁盘，接着其他 follower 自己主动从 leader 来 pull 数据。一旦所有 follower 同步好数据了，就会发送 ack 给 leader，leader 收到所有 follower 的 ack 之后，就会返回写成功的消息给生产者。（当然，这只是其中一种模式，还可以适当调整这个行为）
 
-Kafka server.properties配置文件的核心配置如下。其中，broker.id是Broker的唯一标识，host.name和port分别是Kafka服务监听的地址和端口，log.dirs是Kafka数据文件存储的目录，zookeeper.connect是zookeeper的服务地址。
+**消费**的时候，只会从 leader 去读，但是只有当一个消息已经被所有 follower 都同步成功返回 ack 的时候，这个消息才会被消费者读到。
 
-( 4 ）启动ZooKeeper：到zookeeper安装目录执行start命令启动ZooKeeper。
+## 7.如何保证消息消费的幂等性？
 
-```
-bin/zkServer sh start
-```
+Kafka 实际上有个 offset 的概念，就是每个消息写进去，都有一个 offset，代表消息的序号，然后 consumer 消费了数据之后，**每隔一段时间**（定时定期），会把自己消费过的消息的 offset 提交一下，表示“我已经消费过了，下次我要是重启啥的，你就让我继续从上次消费到的 offset 来继续消费吧”。
 
-( 5 ）启动Kafka：到Kafka安装目录执行start令启动Kafka。其中“＞／dev/null2>&1 ＆”表示后台启动并将日志输出到Linux黑洞。
+但是凡事总有意外，比如我们之前生产经常遇到的，就是你有时候重启系统，看你怎么重启了，如果碰到点着急的，直接 kill 进程了，再重启。这会导致 consumer 有些消息处理了，但是没来得及提交 offset，尴尬了。重启之后，少数消息会再次消费一次。
 
-```
-bin/kafka-server-start.sh config/server.properties>/dev/null 2＞&1 & 
-```
+注意：新版的 Kafka 已经将 offset 的存储从 Zookeeper 转移至 Kafka brokers，并使用内部位移主题 `__consumer_offsets` 进行存储。
 
-( 6 ）建立Kafka Topic：到Kafka安装目录调用kafka-topics.sh脚本，执行以下命令建立名称为TopicA、数据副本的个数为1、Partition的个数为3的Topic。
+一条数据重复出现两次，数据库里只有一条数据，这就保证了系统的幂等性。
 
-```
-bin/kafka-topics.sh --create --bootstrap-server localhost:9092 
---replication-factor 1 --partitions 3 --topic TopicA 
-```
+幂等性，通俗点说，就一个数据，或者一个请求，给你重复来多次，你得确保对应的数据是不会改变的，**不能出错**。
 
-在上述命令中，--create表示对Topic的创建动作，--bootstrap-server为Kafka服务端的地址，--replication-factor为数据副本的个数，--partitions为消息分区的个数。
+怎么保证消息队列消费的幂等性？其实还是得结合业务来思考，我这里给几个思路：
 
-( 7)查看Kafka Topic ：到Kafka安装目录调用kafka-topics.sh脚本，执行以下命令查看刚刚建立的Topic信息。其中--describe表示打印Topic的描述信息。
+- 比如你拿个数据要写库，你先根据主键查一下，如果这数据都有了，你就别插入了，update 一下好吧。
+- 比如你是写 Redis，那没问题了，反正每次都是 set，天然幂等性。
+- 比如你不是上面两个场景，那做的稍微复杂一点，你需要让生产者发送每条数据的时候，里面加一个全局唯一的 id，类似订单 id 之类的东西，然后你这里消费到了之后，先根据这个 id 去比如 Redis 里查一下，之前消费过吗？如果没有消费过，你就处理，然后这个 id 写 Redis。如果消费过了，那你就别处理了，保证别重复处理相同的消息即可。
+- 比如基于数据库的唯一键来保证重复数据不会重复插入多条。因为有唯一键约束了，重复数据插入只会报错，不会导致数据库中出现脏数据。
 
-( 8 ）安装Kafka集群：Kafka集群的安装只需要在各个服务端的server.properties上设置不同的broker.id然后启动即可。
+## 8.如何保证消息的可靠性传输
 
-## 7.基于SpringBootKafka应用
+### 消费端弄丢了数据
 
-下面以SpringBoot为例介绍Kafka消息生产和消费的使用方法。
+唯一可能导致消费者弄丢数据的情况，就是说，你消费到了这个消息，然后消费者那边**自动提交了 offset**，让 Kafka 以为你已经消费好了这个消息，但其实你才刚准备处理这个消息，你还没处理，你自己就挂了，此时这条消息就丢咯。
 
-( 1 ）引人pom.xml依赖：新建SpringBoot项目，并在pom.xml中添加如下Kafka依赖，其中spring-kafka是Spring对Kafka客户端操作的封装。
+大家都知道 Kafka 会自动提交 offset，那么只要**关闭自动提交** offset，在处理完之后自己手动提交 offset，就可以保证数据不会丢。但是此时确实还是**可能会有重复消费**，比如你刚处理完，还没提交 offset，结果自己挂了，此时肯定会重复消费一次，自己保证幂等性就好了。
 
-( 2 ）添加配置文件：在application.properties配置文件中添加如下Kafka配置，其中spring.kafka.bootstrap-servers为Kafka的服务地址。
+生产环境碰到的一个问题，就是说我们的 Kafka 消费者消费到了数据之后是写到一个内存的 queue 里先缓冲一下，结果有的时候，你刚把消息写入内存 queue，然后消费者会自动提交 offset。然后此时我们重启了系统，就会导致内存 queue 里还没来得及处理的数据就丢失了。
 
-( 3 ）配置SpringBoot异步多线程：由于SpringBoot注册的组件默认是单线程的，所以为了提高并发度，应用程序需要以多线程的方式注册Kafka Cosumer。
+### Kafka 弄丢了数据
 
-( 4 ）定义Kafka Producer类：由于Spring将Kafka的操作封装为KafkaTemplate，所以基于SpringBoot项目应用程序只需要引入spring-kafka的依赖包，并在application.properties中设置好Kafka配置。SpringBoot在项目初始化后自动为应用程序创建KafkaTemplate，在应用程序上只需要依赖注入并使用即可。
+这块比较常见的一个场景，就是 Kafka 某个 broker 宕机，然后重新选举 partition 的 leader。大家想想，要是此时其他的 follower 刚好还有些数据没有同步，结果此时 leader 挂了，然后选举某个 follower 成 leader 之后，不就少了一些数据？这就丢了一些数据啊。
 
-( 5 ）定义Kafka Consumer : Consumer监听的定义只需要在方法上配置@KafkaListener注解并在注解上配置要监听的Topic即可。这里的Topics可以是多个。同时，为了提高消息消费的并发度，需要在方法上添@Async()注解，表示该方法是一个多线程异步执行的方法。
+生产环境也遇到过，我们也是，之前 Kafka 的 leader 机器宕机了，将 follower 切换为 leader 之后，就会发现说这个数据就丢了。
+
+所以此时一般是要求起码设置如下 4 个参数：
+
+- 给 topic 设置 `replication.factor` 参数：这个值必须大于 1，要求每个 partition 必须有至少 2 个副本。
+- 在 Kafka 服务端设置 `min.insync.replicas` 参数：这个值必须大于 1，这个是要求一个 leader 至少感知到有至少一个 follower 还跟自己保持联系，没掉队，这样才能确保 leader 挂了还有一个 follower 吧。
+- 在 producer 端设置 `acks=all` ：这个是要求每条数据，必须是**写入所有 replica 之后，才能认为是写成功了**。
+- 在 producer 端设置 `retries=MAX` （很大很大很大的一个值，无限次重试的意思）：这个是**要求一旦写入失败，就无限重试**，卡在这里了。
+
+我们生产环境就是按照上述要求配置的，这样配置之后，至少在 Kafka broker 端就可以保证在 leader 所在 broker 发生故障，进行 leader 切换时，数据不会丢失。
+
+### 生产者会不会弄丢数据？
+
+如果按照上述的思路设置了 `acks=all` ，一定不会丢，要求是，你的 leader 接收到消息，所有的 follower 都同步到了消息之后，才认为本次写成功了。如果没满足这个条件，生产者会自动不断的重试，重试无限次。
+
+## 9.如何保证消息的顺序性？
+
+比如说我们建了一个 topic，有三个 partition。生产者在写的时候，其实可以指定一个 key，比如说我们指定了某个订单 id 作为 key，那么这个订单相关的数据，一定会被分发到同一个 partition 中去，而且这个 partition 中的数据一定是有顺序的。 消费者从 partition 中取出来数据的时候，也一定是有顺序的。到这里，顺序还是 ok 的，没有错乱。接着，我们在消费者里可能会搞**多个线程来并发处理消息**。因为如果消费者是单线程消费处理，而处理比较耗时的话，比如处理一条消息耗时几十 ms，那么 1 秒钟只能处理几十条消息，这吞吐量太低了。而多个线程并发跑的话，顺序可能就乱掉了。
+
+### 解决方案
+
+- 一个 topic，一个 partition，一个 consumer，内部单线程消费，单线程吞吐量太低，一般不会用这个。
+- 写 N 个内存队列queue，具有相同 key 的数据都到同一个内存 queue；然后对于 N 个线程，每个线程分别消费一个内存 queue 即可，这样就能保证顺序性。
